@@ -1,5 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:xclout/backend/main_api.dart';
+import 'package:xclout/backend/widgets.dart';
+
+// Main Chats Home Page
 class ChatsPage extends StatelessWidget {
   const ChatsPage({super.key});
 
@@ -8,6 +13,21 @@ class ChatsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Chats"),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48.0),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Search',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                // Handle search here...
+              },
+            ),
+          ),
+        ),
       ),
       body: const ChatsList(),
     );
@@ -24,60 +44,102 @@ class ChatsList extends StatefulWidget {
 class _ChatsListState extends State<ChatsList> {
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: 20,
-      itemBuilder: (BuildContext context, int index) {
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(
-                "https://avatars.githubusercontent.com/u/25105821?v=4"),
-          ),
-          title: Text("Username"),
-          subtitle: Text("Message"),
-          trailing: Text("Time"),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (BuildContext context) => const ChatScreen())),
-        );
-      },
-    );
+    return FutureBuilder(
+        future: _getChatList(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            // If snapshot has no data
+            return const CircularProgressIndicator();
+            // NO DATA
+          } else {
+            // Snapshot has data -- Chats loaded
+            List<dynamic> contacts = jsonDecode(snapshot.data.toString());
+            print(contacts);
+            return ListView.builder(
+              itemCount: contacts.length,
+              itemBuilder: (BuildContext context, int index) {
+                Map contact = contacts[index];
+                Map<String, dynamic> otherUser = contact['OtherUser'];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage:
+                        NetworkImage(otherUser['ProfilePicture'].toString()),
+                  ),
+                  title: UserNameAndPost(user: otherUser),
+                  subtitle: Text(
+                    contact['Message'].toString(),
+                    style: TextStyle(
+                        color: ((contact['IsRead'] as int) == 1)
+                            ? Colors.grey
+                            : Colors.white),
+                  ),
+                  // trailing: Text("Time"),
+                  onTap: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (BuildContext context) => ChatScreen(
+                        receiverId: otherUser['UserId'],
+                        userDetails: otherUser),
+                  )),
+                );
+              },
+            );
+          }
+        });
+  }
+
+  Future<String> _getChatList() {
+    return MainApiCall()
+        .callEndpoint(endpoint: 'getConversation', fields: {'type': 'list'});
   }
 }
 
 class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
+  final int receiverId;
+  final Map<String, dynamic> userDetails;
+
+  const ChatScreen(
+      {super.key, required this.receiverId, required this.userDetails});
 
   @override
   Widget build(BuildContext context) {
     // Individual chat between two users
     return Scaffold(
-      body: Column(
-        children: [
-          ChatScreenHeader(),
-          Expanded(
-            child: ChatScreenBody(),
-          ),
-          ChatScreenFooter(),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            chatScreenHeader(),
+            Expanded(
+              child: ChatScreenBody(between: receiverId),
+            ),
+            chatScreenFooter(context),
+          ],
+        ),
       ),
     );
   }
 
-  ListTile ChatScreenHeader() {
-    return const ListTile(
+  ListTile chatScreenHeader() {
+    return ListTile(
       leading: CircleAvatar(
-        backgroundImage: NetworkImage(
-            "https://avatars.githubusercontent.com/u/25105821?v=6"),
-      ),
-      title: Text("Username"),
-      subtitle: Text(
-        "Message",
-        style: TextStyle(color: Colors.grey),
+          backgroundImage: NetworkImage(
+        userDetails['ProfilePicture'].toString(),
+      )),
+      title: UserNameAndPost(user: userDetails),
+      subtitle: const Text(
+        "Hmmmm",
+        style: TextStyle(color: Color.fromARGB(255, 144, 136, 136)),
       ),
     );
   }
 
-  // Send messsage bar
-  Widget ChatScreenFooter() {
+  // SEND MESSAGES BAR
+  Widget chatScreenFooter(BuildContext context) {
+    print({
+      'type': 'direct',
+      'receiverId': receiverId.toString(),
+    });
+    final TextEditingController _message = TextEditingController();
+    // SEND MESSAGES BAR
     return Container(
       padding: const EdgeInsets.all(10),
       child: Card(
@@ -89,6 +151,7 @@ class ChatScreen extends StatelessWidget {
                 child: TextFormField(
                   maxLines:
                       null, // this allows the TextField to expand as the user types
+                  controller: _message,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.all(10),
                     hintText: "Type a message",
@@ -98,7 +161,10 @@ class ChatScreen extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                // SEND MESSAGE
+                _sendMessage(_message, context);
+              },
               icon: const Icon(
                 Icons.send,
                 size: 50,
@@ -109,72 +175,106 @@ class ChatScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _sendMessage(TextEditingController message, BuildContext context) {
+    MainApiCall().callPostEndpoint(endpoint: 'sendMessage', fields: {
+      'type': 'direct',
+      'receiverId': receiverId.toString(),
+      'message': message.text,
+    }).then(
+      (response) => () {
+        print('It is NOOOW');
+        print(response.body);
+        if (response.body == 'Success') {
+          // refresh page
+          Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+            builder: (BuildContext context) =>
+                ChatScreen(receiverId: receiverId, userDetails: userDetails),
+          ));
+        }
+      },
+    );
+  }
 }
 
 class ChatScreenBody extends StatefulWidget {
-  const ChatScreenBody({super.key});
+  final int between; //User id of the other user
+  const ChatScreenBody({super.key, required this.between});
 
   @override
   State<ChatScreenBody> createState() => _ChatScreenBodyState();
 }
 
 class _ChatScreenBodyState extends State<ChatScreenBody> {
-  final List<Message> messages = [
-    Message('Hello!', MessageType.received),
-    Message('Hi, how can I help you?', MessageType.sent),
-    // Add more messages here
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-        reverse: true, // To keep the latest messages at the bottom
-        itemCount: messages.length,
-        itemBuilder: (context, index) {
-          final message = messages[index];
-          return ListTile(
-            title: Container(
-              height: 50,
-              width: 50,
-              margin: EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                mainAxisAlignment: message.type == MessageType.received
-                    ? MainAxisAlignment.start
-                    : MainAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: message.type == MessageType.received
-                          ? Colors.lightGreen.shade200
-                          : Colors.blue[400],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      message.content,
-                      style: TextStyle(
-                        color: message.type == MessageType.received
-                            ? Colors.black
-                            : Colors.white,
-                      ),
+    return FutureBuilder(
+      future: _getSingleChat(between: widget.between),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          // SNAPSHOT NO DATA - Chats not loaded
+          return const CircularProgressIndicator();
+          // SNAPSHOT NO DATA - Chats not loaded
+        } else {
+          // SNAPSHOT HAS DATA - Chats loaded
+          List<dynamic> messages = jsonDecode(snapshot.data.toString());
+          print(messages);
+          return ListView.builder(
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                final int userIdFrom = message['UserId_From'];
+                return ListTile(
+                  title: SizedBox(
+                    height: 50,
+                    width: 50,
+                    child: Row(
+                      mainAxisAlignment:
+                          _messageIsFromOther(userIdFrom: userIdFrom)
+                              ? MainAxisAlignment.start
+                              : MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: _messageIsFromOther(userIdFrom: userIdFrom)
+                                ? Colors.lightGreen.shade200
+                                : Colors.blue[400],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            message['Message'],
+                            style: TextStyle(
+                              color: _messageIsFromOther(userIdFrom: userIdFrom)
+                                  ? Colors.black
+                                  : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        });
+                );
+              });
+          // SNAPSHOT HAS DATA - Chats loaded
+        }
+      },
+    );
   }
-}
 
-class Message {
-  final String content;
-  final MessageType type;
+  Future<String> _getSingleChat({required int between}) {
+    return MainApiCall().callEndpoint(endpoint: 'getConversation', fields: {
+      'type': 'direct',
+      'otherUserId': between.toString(),
+    });
+  }
 
-  Message(this.content, this.type);
-}
-
-enum MessageType {
-  sent,
-  received,
+  bool _messageIsFromOther({required int userIdFrom}) {
+    if (userIdFrom == widget.between) {
+      return true;
+    } else {
+      return false;
+    }
+  }
 }

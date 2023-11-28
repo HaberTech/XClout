@@ -1,47 +1,159 @@
 import 'package:flutter/foundation.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:xclout/backend/main_api.dart';
 
 import 'package:xclout/backend/widgets.dart';
 import 'package:xclout/backend/universal_imports.dart';
+import 'package:xclout/screens/homescreen/post_comments.dart';
+
+part 'posts_card.g.dart';
+
+@JsonSerializable()
+class Post {
+  //   "Caption": "I am 21 tryna live up here right here",
+  //   "DateAdded": "Mon, 13 Nov 2023 02:19:09 GMT",
+  //   "Liked": null,
+  //   "NumberOfShares": 2,
+  // "SchoolName"
+  //   "PostId": 1,
+  //   "PostStats": {
+  //     "NumberOfComments": 0,
+  //     "NumberOfDislikes": "0",
+  //     "NumberOfLikes": "1",
+  //     "NumberOfShares": 2
+  //   },
+  //   "Resources": "[\"link1\", \"link2\", \"link3\"]",
+  //   "SourcePlatform": "",
+  //   "SourceUsername": "cedrick__j",
+  //   "User": {
+  //     "ProfilePicture": "profile",
+  //     "SchoolName": "Namilyango College",
+  //     "SchoolPost": "Founder",
+  //     "ShowPost": 1.0,
+  //     "UserId": 1,
+  //     "Username": "cedrick__j",
+  //     "Verfied": 1,
+  //     "VerificationType": "executive"
+  //   },
+  //   "UserId": 1
+  // }
+
+  @JsonKey(name: 'Caption')
+  final String caption;
+  @JsonKey(name: 'DateAdded')
+  final String dateAdded;
+  @JsonKey(name: 'Liked')
+  String likeStatus;
+  @JsonKey(name: 'NumberOfShares')
+  final int numberOfShares;
+  @JsonKey(name: 'PostId')
+  final int postId;
+  @JsonKey(name: 'PostStats')
+  final Map<String, int> postStats;
+  @JsonKey(name: 'Resources')
+  final List<String> resources;
+  @JsonKey(name: 'ResourceTypes')
+  final List<int> resourceTypes;
+  @JsonKey(name: 'SourcePlatform')
+  final String sourcePlatform;
+  @JsonKey(name: 'SourceUsername')
+  final String sourceUsername;
+  @JsonKey(name: 'SchoolId')
+  final String schoolId;
+  @JsonKey(name: 'SchoolName')
+  final String schoolName;
+  @JsonKey(name: 'SchoolLogo')
+  final String schoolLogo;
+  @JsonKey(name: 'User')
+  final Map<String, dynamic> user;
+  @JsonKey(name: 'UserId')
+  final int userId;
+
+  Post({
+    required this.caption,
+    required this.dateAdded,
+    required this.likeStatus,
+    required this.numberOfShares,
+    required this.postId,
+    required this.postStats,
+    required this.resources,
+    required this.resourceTypes,
+    required this.sourcePlatform,
+    required this.sourceUsername,
+    required this.schoolId,
+    required this.schoolName,
+    required this.schoolLogo,
+    required this.user,
+    required this.userId,
+  });
+
+  // factory Post.fromJson(List oldJson) {
+  //   final json = oldJson[0];
+  //   print(json['User']);
+  //   return Post(
+  //     caption: json['Caption'],
+  //     dateAdded: json['DateAdded'],
+  //     liked: json['Liked'],
+  //     numberOfShares: json['NumberOfShares'],
+  //     postId: json['PostId'],
+  //     postStats: json['PostStats'],
+  //     resources: (jsonDecode(json['Resources']) as List)
+  //         .map((item) => item as String)
+  //         .toList(),
+  //     sourcePlatform: json['SourcePlatform'],
+  //     sourceUsername: json['SourceUsername'],
+  //     schoolId: json['SchoolId'],
+  //     schoolName: json['SchoolName'],
+  //     schoolLogo: json['SchoolLogo'],
+  //     user: (json['User'] as Map<String, dynamic>)
+  //         .map((key, value) => MapEntry(key, value.toString())),
+  //     userId: json['UserId'],
+  //   );
+  // }
+  factory Post.fromJson(Map<String, dynamic> json) => _$PostFromJson(json);
+
+  Map<String, dynamic> toJson() => _$PostToJson(this);
+}
 
 class PostCard extends StatefulWidget {
-  final Map<String, dynamic> post;
+  final Post post;
   const PostCard({super.key, required this.post});
 
   @override
   State<PostCard> createState() => _PostCardState();
 
-  static Future<List<dynamic>> loadStrings() async {
-    List<dynamic> allPosts = [];
-    final String gayazaPosts =
-        await rootBundle.loadString('assets/schoolMedias/GYZA_media_list.json');
-    final String namilyangoPosts =
-        await rootBundle.loadString('assets/schoolMedias/NGO_media_list.json');
+  // static Future<List<dynamic>> loadStrings() async {
+  //   List<dynamic> allPosts = [];
+  //   final String gayazaPosts =
+  //       await rootBundle.loadString('assets/schoolMedias/GYZA_media_list.json');
+  //   final String namilyangoPosts =
+  //       await rootBundle.loadString('assets/schoolMedias/NGO_media_list.json');
 
-    List gayazaPostsList = jsonDecode(gayazaPosts);
-    List namilyangoPostsList = jsonDecode(namilyangoPosts);
-    allPosts.addAll(gayazaPostsList);
-    allPosts.addAll(namilyangoPostsList);
+  //   List gayazaPostsList = jsonDecode(gayazaPosts);
+  //   List namilyangoPostsList = jsonDecode(namilyangoPosts);
+  //   allPosts.addAll(gayazaPostsList);
+  //   allPosts.addAll(namilyangoPostsList);
 
-    // Sort all posts by date
-    allPosts.sort((a, b) {
-      var adate = a['taken_at'];
-      var bdate = b['taken_at'];
-      return -adate.compareTo(bdate);
-    });
+  //   // Sort all posts by date
+  //   allPosts.sort((a, b) {
+  //     var adate = a['taken_at'];
+  //     var bdate = b['taken_at'];
+  //     return -adate.compareTo(bdate);
+  //   });
 
-    // Remove duplicates
-    Set uniquePosts = {};
-    List deduplicatedPosts = [];
-    for (var post in allPosts) {
-      if (uniquePosts.add(post)) {
-        deduplicatedPosts.add(post);
-      }
-    }
+  //   // Remove duplicates
+  //   Set uniquePosts = {};
+  //   List deduplicatedPosts = [];
+  //   for (var post in allPosts) {
+  //     if (uniquePosts.add(post)) {
+  //       deduplicatedPosts.add(post);
+  //     }
+  //   }
 
-    return deduplicatedPosts;
-  }
+  //   return deduplicatedPosts;
+  // }
 }
 
 class _PostCardState extends State<PostCard> {
@@ -55,11 +167,25 @@ class _PostCardState extends State<PostCard> {
         PostCardBody(post: widget.post),
         PostCardReactionButtons(widget: widget),
         PostCardCaptionAndComments(widget: widget),
+        // Number of comments
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        PostComments(postId: widget.post.postId)));
+          },
+          child: Text(
+            "     ${widget.post.postStats['NumberOfComments']}  Comments",
+            style: const TextStyle(fontWeight: FontWeight.normal),
+          ),
+        ),
         // Parse date string
         // Format date
         // Display formatted date
         Text(
-          '     ${intl.DateFormat.yMMMMd().format(DateTime.parse(widget.post['taken_at']))}',
+          '     ${intl.DateFormat.yMMMMd().format(DateTime.parse(widget.post.dateAdded))}',
           style: const TextStyle(color: Colors.grey),
         ),
       ],
@@ -74,20 +200,21 @@ class PostCardCaptionAndComments extends StatelessWidget {
   });
 
   final PostCard widget;
-
   @override
   Widget build(BuildContext context) {
     return RichText(
+      maxLines: 5,
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
         style: const TextStyle(fontSize: 16.0, color: Colors.white),
         text: "     ",
         children: <TextSpan>[
           TextSpan(
-            text: widget.post['user']['username'] + " ",
+            text: widget.post.user['Username']! + " ",
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           TextSpan(
-            text: widget.post["caption_text"],
+            text: widget.post.caption,
             style: const TextStyle(fontWeight: FontWeight.normal),
           ),
         ],
@@ -96,7 +223,7 @@ class PostCardCaptionAndComments extends StatelessWidget {
   }
 }
 
-class PostCardReactionButtons extends StatelessWidget {
+class PostCardReactionButtons extends StatefulWidget {
   const PostCardReactionButtons({
     super.key,
     required this.widget,
@@ -105,35 +232,96 @@ class PostCardReactionButtons extends StatelessWidget {
   final PostCard widget;
 
   @override
+  State<PostCardReactionButtons> createState() =>
+      _PostCardReactionButtonsState();
+}
+
+class _PostCardReactionButtonsState extends State<PostCardReactionButtons> {
+  late String likeStatus;
+  late int numberOfLikes;
+  late int numberOfDislikes;
+
+  @override
+  void initState() {
+    super.initState();
+    likeStatus = widget.widget.post.likeStatus;
+    numberOfLikes = widget.widget.post.postStats['NumberOfLikes'] ?? 0;
+    numberOfDislikes = widget.widget.post.postStats['NumberOfDislikes'] ?? 0;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    print('Rebuilding => $likeStatus');
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: <Widget>[
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.thumb_up_outlined),
-              onPressed: () {},
+              icon: Icon(Icons.thumb_up_outlined,
+                  color: (likeStatus == 'like') ? Colors.blue : Colors.grey),
+              onPressed: () async {
+                await MainApiCall()
+                    .callEndpoint(endpoint: '/likeOrDislikePost', fields: {
+                  'postId': widget.widget.post.postId.toString(),
+                  'likeSetting': 'like',
+                  'removeReaction':
+                      (likeStatus == 'like') ? 1.toString() : 0.toString(),
+                });
+                setState(() {
+                  if (likeStatus == 'like') {
+                    numberOfLikes -= 1;
+                    likeStatus == 'none';
+                  } else {
+                    numberOfLikes += 1;
+                    likeStatus == 'like';
+                  }
+                });
+              },
             ),
-            Text("${widget.post['like_count']}"),
+            Text("$numberOfLikes"),
           ],
         ),
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.thumb_down_outlined),
-              onPressed: () {},
+              icon: Icon(Icons.thumb_down_outlined,
+                  color: (likeStatus == 'dislike') ? Colors.blue : Colors.grey),
+              onPressed: () {
+                MainApiCall()
+                    .callEndpoint(endpoint: '/likeOrDislikePost', fields: {
+                  'postId': widget.widget.post.postId.toString(),
+                  'likeSetting': 'dislike',
+                  'removeReaction':
+                      (likeStatus == 'dislike') ? 1.toString() : 0.toString(),
+                });
+                setState(() {
+                  if (likeStatus == 'dislike') {
+                    numberOfDislikes -= 1;
+                    likeStatus == 'none';
+                  } else {
+                    numberOfDislikes += 1;
+                    likeStatus == 'dislike';
+                  }
+                });
+              },
             ),
-            const Text("12"),
+            Text("$numberOfDislikes"),
           ],
         ),
         Row(
           children: [
             IconButton(
               icon: const Icon(Icons.comment_rounded),
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            PostComments(postId: widget.widget.post.postId)));
+              },
             ),
-            const Text("26"),
+            Text(widget.widget.post.postStats['NumberOfComments'].toString()),
           ],
         ),
         Row(
@@ -142,7 +330,7 @@ class PostCardReactionButtons extends StatelessWidget {
               icon: const Icon(Icons.telegram_outlined),
               onPressed: () {},
             ),
-            const Text("35"),
+            Text(widget.widget.post.numberOfShares.toString()),
           ],
         ),
       ],
@@ -161,29 +349,18 @@ class PostCardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: SizedBox(
-        height: 40,
-        width: 40,
-        child: MyCORSImage.network(
-          url: widget.post['user']['username'] == "ig.gayaza"
-              ? "https://gayazahs.sc.ug/wp-content/uploads/2023/02/cropped-GHS-Badge-3.png"
-              : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRI7ZDmITB-BgZT_cBo0ROxaObVWfsK_xNjnXiivihoHg&s",
+        leading: SizedBox(
+          height: 40,
+          width: 40,
+          child: MyCORSImage.network(url: widget.post.schoolLogo),
         ),
-      ),
-      title: Text(widget.post['user']['username'] == "ig.gayaza"
-          ? "Gayaza High School"
-          : "Namilyango College"),
-      subtitle: Row(children: [
-        Text(widget.post['user']['username']),
-        const SizedBox(width: 5),
-        Icon(Icons.verified, color: Colors.blue, size: 15),
-      ]),
-    );
+        title: Text(widget.post.schoolName),
+        subtitle: UserNameAndPost(user: widget.post.user));
   }
 }
 
 class PostCardBody extends StatefulWidget {
-  final Map<String, dynamic> post;
+  final Post post;
   const PostCardBody({super.key, required this.post});
 
   @override
@@ -216,7 +393,7 @@ class _PostCardBodyState extends State<PostCardBody> {
   CarouselSlider postCarouselSlider() {
     return CarouselSlider.builder(
       carouselController: _controller,
-      itemCount: widget.post['resources'].length,
+      itemCount: widget.post.resources.length,
       itemBuilder: (BuildContext context, int index, int realIndex) {
         return SizedBox(
           width: MediaQuery.of(context).size.width,
@@ -226,7 +403,7 @@ class _PostCardBodyState extends State<PostCardBody> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(30),
               child: MyCORSImage.network(
-                url: widget.post['resources'][index]['thumbnail_url'],
+                url: widget.post.resources[index],
               ),
             ),
           ),
@@ -246,7 +423,7 @@ class _PostCardBodyState extends State<PostCardBody> {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Text(
-            "${_currentIndex + 1}/${widget.post['resources'].length}",
+            "${_currentIndex + 1}/${widget.post.resources.length}",
             style: const TextStyle(fontSize: 16, color: Colors.white),
           ),
         ),

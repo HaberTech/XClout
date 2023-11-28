@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
+import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import 'package:xclout/backend/main_api.dart';
+import 'package:xclout/backend/universal_imports.dart';
 import 'package:xclout/backend/widgets.dart';
-import 'package:xclout/screens/chat/chat.dart';
+import 'package:xclout/screens/account/login.dart';
 
 Map<String, TextEditingController> _formTextValues = {
   "username": TextEditingController(),
@@ -14,20 +18,25 @@ Map<String, TextEditingController> _formTextValues = {
   "password": TextEditingController(),
   "confirmPassword": TextEditingController(),
   "fullName": TextEditingController(),
+  "yearofp7": TextEditingController(),
+  "yearofs4": TextEditingController(),
+  "yearofs6": TextEditingController(),
 };
-Map<String, String> _formImageValues = {};
+Map<String, Uint8List> _formImageValues = {};
 String _selectedSchool = "";
 
 class SignUpScreen extends StatelessWidget {
   final Widget formToShow;
+  final String title;
 
-  const SignUpScreen({super.key, required this.formToShow});
+  const SignUpScreen(
+      {super.key, required this.formToShow, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sign Up"),
+        title: Text(title),
       ),
       body: formToShow,
     );
@@ -119,11 +128,29 @@ class SignUpForm extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const SignUpScreen(
-                              formToShow: SignUpFormSchoolDetails()),
+                              formToShow: SignUpFormSchoolDetails(),
+                              title: "SignUp"),
                         ),
                       );
                     },
                     child: const Text("Continue"),
+                  ),
+                  TextButton(
+                    child: const Text(
+                      'Login In Instead',
+                      style: TextStyle(color: Colors.blueGrey),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SignUpScreen(
+                            formToShow: LoginForm(),
+                            title: 'Login',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -198,10 +225,9 @@ class SignUpFormSchoolDetails extends StatelessWidget {
                   ),
                   ElevatedButton(
                     style: myButtonStyle(),
-                    onPressed: () {
-                      developer.log(_formTextValues.toString());
-                      signUpUser(context);
-                    },
+                    onPressed: (() async {
+                      await signUpUser(context);
+                    }),
                     child: const Text("Sign Up"),
                   ),
                 ],
@@ -214,10 +240,11 @@ class SignUpFormSchoolDetails extends StatelessWidget {
   }
 
   Future<DropdownButtonFormField<String>> _schoolPicker() async {
-    final List<dynamic> response =
-        await MainApiCall().callEndpoint("getListOfSchools", null);
+    final String response = await MainApiCall()
+        .callEndpoint(endpoint: "getListOfSchools", fields: null);
+    final List<dynamic> listOschools = jsonDecode(response);
     final List<Map<String, String>> schools =
-        response.map<Map<String, String>>((item) {
+        listOschools.map<Map<String, String>>((item) {
       final Map<String, dynamic> dynamicMap = item as Map<String, dynamic>;
       return dynamicMap.map((key, value) => MapEntry(key, value.toString()));
     }).toList();
@@ -241,6 +268,62 @@ class SignUpFormSchoolDetails extends StatelessWidget {
       decoration: const InputDecoration(
         labelText: "Select an option",
         border: OutlineInputBorder(),
+      ),
+    );
+  }
+}
+
+class ChooseYear extends StatelessWidget {
+  const ChooseYear({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: TextFormField(
+                      controller: _formTextValues["fullName"],
+                      decoration: const InputDecoration(
+                        labelText: "Your Full Name",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: SelectImage(
+                      header: "Picture of School Id",
+                      button1Text: "Take Picture",
+                      button2Text: "Pick Image from Gallery",
+                      valueIndex: "schoolId",
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: SelectImage(
+                      header: "Your Selfie For Verification",
+                      button1Text: "Take Picture",
+                      valueIndex: "userPhoto",
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: myButtonStyle(),
+                    onPressed: (() => signUpUser(context)),
+                    child: const Text("Sign Up"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -271,11 +354,29 @@ class _SelectImageState extends State<SelectImage> {
   Future<void> getImage(ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source);
 
-    if (image == null) return;
-    setState(() {
-      _image = image;
-      _formImageValues[widget.valueIndex] = _image!.path;
-    });
+    if (image == null) {
+      return;
+    } else {
+      final Uint8List imageBytes = await image.readAsBytes();
+      setState(() {
+        _image = image;
+        _formImageValues[widget.valueIndex] = imageBytes;
+      });
+    }
+  }
+  // ...
+
+  Future<Widget> _buildImage() async {
+    if (_image != null) {
+      return Image.memory(
+        Uint8List.fromList(await _image!.readAsBytes()),
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+      );
+    }
+    // Return an empty Container when _image is null
+    return Container();
   }
 
   @override
@@ -300,28 +401,36 @@ class _SelectImageState extends State<SelectImage> {
               style: myButtonStyle(),
               child: Text(widget.button1Text),
             ),
+            // Show this button only if button2Text is not null
             if (widget.button2Text != null)
               ElevatedButton(
                 onPressed: () => getImage(ImageSource.gallery),
                 style: myButtonStyle(),
-                child: Text(widget.button2Text!),
+                child: Text(widget.button2Text ?? ""),
               ),
           ]),
-          if (_image != null)
-            Image.file(
-              File(_image!.path),
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-            ),
-          // ...
+          // IMAGE
+          FutureBuilder<Widget>(
+            future: _buildImage(),
+            builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const CircularProgressIndicator();
+              } else if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              } else {
+                return snapshot.data ?? Container();
+              }
+            },
+          ),
+          // IMAGE
         ],
       ),
     );
   }
 }
 
-void signUpUser(BuildContext context) async {
+Future<void> signUpUser(BuildContext context) async {
+  final localContext = context;
   final Map<String, String> fields = {};
 
   fields["userName"] = _formTextValues["username"]!.text;
@@ -332,24 +441,35 @@ void signUpUser(BuildContext context) async {
   fields["fullName"] = _formTextValues["fullName"]!.text;
   fields["schoolId"] = _selectedSchool;
 
-  final String schoolIdImage = _formImageValues["schoolId"]!;
-  final String userPhoto = _formImageValues["userPhoto"]!;
+  final Uint8List schoolIdImage = _formImageValues["schoolId"]!;
+  final Uint8List userPhoto = _formImageValues["userPhoto"]!;
 
-  final bool accountCreated = await MainApiCall().signUpUser(
-    fields: fields,
-    schoolIdPhotoPath: schoolIdImage,
-    verificationPhotoPath: userPhoto,
-  );
-
-  if (accountCreated) {
-    // Navigate to the next screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ChatScreen(),
-      ),
-    );
-  } else {
-    // Show an error message
-  }
+  await MainApiCall()
+      .signUpUser(
+        fields: fields,
+        schoolIdPhotoBytes: schoolIdImage,
+        verificationPhotoBytes: userPhoto,
+      )
+      .then((response) => {
+            if (response["status"] == "success")
+              {
+                // Navigate to the next screen
+                Navigator.push(
+                  localContext,
+                  MaterialPageRoute(
+                    builder: (localContext) => const SignUpScreen(
+                        formToShow: LoginForm(), title: 'Login Now'),
+                  ),
+                ),
+              }
+            else
+              {
+                // Show an error message
+                ScaffoldMessenger.of(localContext).showSnackBar(
+                  SnackBar(
+                    content: Text(response["message"]!),
+                  ),
+                ),
+              }
+          });
 }
