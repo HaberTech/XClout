@@ -2,8 +2,11 @@ import pymysql
 import pymysql.cursors
 
 from flask import Flask, session as Session, request
+from flask_cors import CORS
 
 app = Flask(__name__)
+app.secret_key = 'TheTempoaryXcloutDebugSecret'
+CORS(app)
 
 class XcloutDbConn:
     databaseConnection = None
@@ -59,16 +62,16 @@ class XcloutDbConn:
             return None
         
     # Execute a query and return one row
-    def fetchone(self, sql, params=None) -> dict:
-        self.execute(sql, params)
+    def fetchone(self, params=None) -> dict:
+        # self.execute(sql, params)
         if self.tcursor is not None:
             return self.tcursor.fetchone()
         else:
             return None
         
     # Execute a query and return all rows
-    def fetchall(self, sql, params=None) -> list:
-        self.execute(sql, params)
+    def fetchall(self, params=None) -> list:
+        # self.execute(sql, params)
         if self.tcursor is not None:
             return self.tcursor.fetchall()
         else:
@@ -96,3 +99,27 @@ class XcloutDbConn:
 
     
 databaseConnection = XcloutDbConn()
+
+def getShortUserProfile(userId: int):
+     cursor = databaseConnection.cursor()
+    # Select from Users, Schools, in one query
+     cursor.execute("SELECT Users.UserId, Users.Username, Users.SchoolId, Users.ProfilePicture, Users.Verified, Users.SchoolPost, Users.ShowPost, Users.VerificationType, Schools.SchoolName FROM Users INNER JOIN Schools ON Users.SchoolId = Schools.SchoolId WHERE Users.UserId = %s;", (userId))
+     return cursor.fetchone()
+
+
+    #  if(userId != '4'):
+    # else:
+    # # Is School Account
+    #     user = {}
+    #     user['UserId'] = 4
+    #     user['Username'] = 'xclout'
+    #     user['SchoolId'] = 4
+    #     user['ProfilePicture'] = 'https://xclout.com/assets/img/logo.png'
+    #     user['Verified'] = 1
+    #     user['SchoolPost'] = 0
+    #     user['SchoolPost'] = ''
+    #     user['VerificationType'] = 'IgSchool'
+    #     return user
+
+    #     cursor.execute("SELECT * FROM Schools WHERE SchoolId = %s;", (userId))
+    #     return cursor.fetchone()
