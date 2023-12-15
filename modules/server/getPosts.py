@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 import json
+import os
 from random import randint
 from time import sleep
 
@@ -7,6 +9,8 @@ from instagrapi.types import Media
 
 from typing import List
 import sys
+
+from regex import P
 sys.path.append('/Users/cedrick/Projects/Python/Xclout-Backend')
 from modules.main import databaseConnection
 
@@ -21,6 +25,22 @@ from modules.main import databaseConnection
 #     school_id = school['SchoolId']
 #     school_name = school['SchoolName']
 #     school_ig_username = school['IG_Username']
+
+def storeSchoolsLastCheckedDate(schoolId:int, school_ig_username:str):
+    # Load the existing data
+    with open('modules/server/schools_done.json', 'r') as f:
+        schoolsLastCheckedDate = json.load(f)
+
+    # Update the data
+    schoolsLastCheckedDate[schoolId] = {
+        'igUsername': school_ig_username,
+        'lastChecked': datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+    }
+
+    # Save the updated data
+    with open('modules/server/schools_done.json', 'w') as f:
+        json.dump(schoolsLastCheckedDate, f)
+  
 
 def getSchoolMedia(school_ig_username):
     print('\nRetrieving posts for ' + school_ig_username + '...')
@@ -58,7 +78,7 @@ def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List
             SourcePlatform = VALUES(SourcePlatform), 
             DateAdded = VALUES(DateAdded), 
             NumberOfShares = VALUES(NumberOfShares)
-        """, ('4', school_id, post.caption_text, json.dumps(resources), json.dumps(resource_types), 'IG', post.user.username, int(post.pk), post.taken_at, post.like_count))
+        """, ('1', school_id, post.caption_text, json.dumps(resources), json.dumps(resource_types), 'IG', post.user.username, int(post.pk), post.taken_at, post.like_count))
 
         # # Reset AUTO_INCREMENT value
         # cursor.execute("""
@@ -66,6 +86,7 @@ def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List
         # """)
     databaseConnection.commit()
     totalNoOfPostsStored = totalNoOfPostsStored + len(media)
+    storeSchoolsLastCheckedDate(schoolId=school_id, school_ig_username=school_ig_username)
     print('Successfully stored ' + str(len(media)) + ' posts for ' + school_ig_username + ' in database!')
     print(f"Total number of new posts: {str(totalNoOfNewPosts)} == Total number of posts stored: {str(totalNoOfPostsStored)} ")
 
@@ -75,26 +96,73 @@ def uploadPostsForSchool(school_id:int, school_ig_username:str):
 
 def refreshAllSchoolsPosts():
     # GO THROUGH SCHOOLS IN DATABASE
+    # Load file /modules/server/schools_done.json
     cursor = databaseConnection.cursor()
     cursor.execute("SELECT SchoolId, SchoolName, IG_Username FROM Schools")
     schools = cursor.fetchall()
     print('Refreshing posts for ' + str(len(schools)) + ' schools...')
-    schoolsToAvoid:List  = ['ig.bweranyangi', 'ig_men.go', 'ig_kawempe_muslim', 'buddo_ss_001', 'greenhillacademyug', 'ig_spena', 'kabojja_international__school', 'gisuinfo','hana_ig', 'viennacollegenamugongo', 'heritage.uganda', '7hillsinternationalschool','ig_viva_', 'elite_coolkids', 'agakhan.high', 'ig.gayaza', 'kiira_college','smack_ist','ig_namugongo','macosians_','ig_maryhill_', 'ig_tricona', 'ig.sunsas', 'ig.namagunga', 'ig._namilyango','ndejje.an', 'ntare_sch', 'ig_joginsa1', 'rubaga.girls_ss', 'olgc_ig', 'bishopciprianokihangire', 'smaskgram_official','seetahighschools','ig._taibah']
+    schoolsToAvoid:List = []
+    #  ['heritage.uganda', 'gisuinfo', '7hillsinternationalschool']
+    schoolsDone:List  = ['ig.bweranyangi', 'ig_men.go', 'ig_kawempe_muslim',
+    # 'buddo_ss_001', 'greenhillacademyug', 'ig_spena', 'kabojja_international__school', 'gisuinfo','hana_ig', 'viennacollegenamugongo', 'heritage.uganda', '7hillsinternationalschool','ig_viva_', 'elite_coolkids', 'agakhan.high', 'ig.gayaza', 'kiira_college','smack_ist','ig_namugongo','macosians_','ig_maryhill_', 'ig_tricona', 'ig.sunsas', 'ig.namagunga', 'ig._namilyango','ndejje.an', 'ntare_sch', 'ig_joginsa1', 'rubaga.girls_ss', 'olgc_ig', 'bishopciprianokihangire', 'smaskgram_official','seetahighschools','ig._taibah'
+    ]
+
+        # Load file /modules/server/schools_done.json
+    with open('modules/server/schools_done.json', 'r') as f:
+        schoolsLastCheckedDate = json.load(f)
 
     for school in schools:
         school_id = school['SchoolId']
         school_ig_username = school['IG_Username']
 
-        if((school_ig_username == None or school_id== None) or
-            (school_ig_username == '' or school_ig_username== '') or 
-            school_ig_username in schoolsToAvoid):
-            print('Skipping ', school)
+        # Check if the school's Instagram username or ID is None or empty
+        if not school_ig_username or not school_id:
+            print('Skipping due to bad school object', school)
             continue
+        print(schoolsLastCheckedDate)
+        print(school_id, school_ig_username)
+        # Check if the school was checked before
+        if school_id not in schoolsLastCheckedDate or schoolsLastCheckedDate[school_id]['lastChecked'] is None:
+            print(f'No check date for {school_ig_username}, processing it now')
         else:
-            uploadPostsForSchool(school_id=school_id, school_ig_username=school_ig_username)
-            timeToSleep = randint(3, 7)
-            print(f"Sleeping for {timeToSleep} seconds...")
-            sleep(timeToSleep);
+            last_checked_date = datetime.strptime(schoolsLastCheckedDate[school_id]['lastChecked'], '%d/%m/%Y, %H:%M:%S')
+
+            # Check if the school was checked less than 3 days ago
+            if (datetime.now() - last_checked_date) < timedelta(days=3):
+                print(f'Skipping {school_ig_username}, it was checked less than 3 days ago')
+                continue
+
+        # Everything fine, continue
+        uploadPostsForSchool(school_id=school_id, school_ig_username=school_ig_username)
+        timeToSleep = randint(3*60, 5*60) # 3 to 5 minutes
+        print(f"Sleeping for {timeToSleep/60} Minutes...")
+        sleep(timeToSleep);
+      
+
+def initialiseIgClient():
+    cl = Client();
+    # USERNAME = 'ask_ur_mom_to_follow_me_coz_i'
+    USERNAME = 'dking_rw'
+    PASSWORD = 'donaldtrump2'
+    settings_path = f'modules/server/{USERNAME}-settings.json'
+
+
+    # Check if the file is empty or does not exist
+    if not os.path.exists(settings_path) or os.stat(settings_path).st_size == 0:
+        # If it is, initialize cl with default settings
+        print('Initialising client with default settings...')
+        cl.set_locale('en_UG')
+        cl.set_country_code(256)
+        cl.set_timezone_offset(-3 * 60 * 60) # UTC-3
+        cl.login(username=USERNAME, password=PASSWORD)
+        cl.dump_settings(path=settings_path)
+    else:
+        print('Initialising client with saved settings...')
+        # Load the settings into th client
+        cl.load_settings(path=settings_path)
+        cl.login(username=USERNAME, password=PASSWORD)
+
+    return cl
 
 if __name__ == '__main__':
     global totalNoOfNewPosts
@@ -103,14 +171,24 @@ if __name__ == '__main__':
     totalNoOfNewPosts:int = 0;
     totalNoOfPostsStored:int = 0;
 
-    cl = Client();
-    cl.login_by_sessionid("37565592330%3Aq7Y2YxWEm6l1mF%3A14%3AAYduRr3hO2Zd_KNQYesBuU-W3CR654VSTWhHP-RlRQ")
+    cl = initialiseIgClient();
     try:
         thisBot = cl.account_info()
         print(f"Logged in as {thisBot.username}\n")
         try: refreshAllSchoolsPosts();
         except Exception as e : raise e
     except Exception as e2:
-        print("Login Error. FUCK!!!!!!...\n")
-        raise e2
+        print("Login Error. FUCK!!!!!!... Retrying\n")
+        try:
+            cl.relogin()
+            print('Success 1')
+            refreshAllSchoolsPosts()
+        except Exception as e:
+            print('Failed 1', e)
+            try:
+                cl.relogin()
+                print('Success 2')
+                refreshAllSchoolsPosts()
+            except Exception as e:
+                print('Failed 2', e)
 #  caffeinate -i -s /opt/homebrew/bin/python3 /Users/cedrick/Projects/Python/Xclout-Backend/modules/server/getPosts.py

@@ -39,7 +39,7 @@ def likeOrDislikePost(post_id, likeSetting:str, removeReaction):
     else:
         if likeSetting is not None:
             cursor.execute("""
-                INSERT INTO LikedAndDislikes(PostId, UserId, LikedPost)
+                INSERT INTO LikesAndDislikes(PostId, UserId, LikedStatus)
                 VALUES (%s, %s, %s)
             """, (post_id, session['userId'], likeSetting))
     databaseConnection.commit()

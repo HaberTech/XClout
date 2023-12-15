@@ -1,12 +1,6 @@
+import os
 import pymysql
 import pymysql.cursors
-
-from flask import Flask, session as Session, request
-from flask_cors import CORS
-
-app = Flask(__name__)
-app.secret_key = 'TheTempoaryXcloutDebugSecret'
-CORS(app)
 
 class XcloutDbConn:
     databaseConnection = None
@@ -14,12 +8,12 @@ class XcloutDbConn:
     def __init__(self) -> None:
         try:
             self.databaseConnection = pymysql.connect(
-                host="localhost",
-                password="",
-                port=3306,
-                user="root",
                 db="xclout",
-                cursorclass=pymysql.cursors.DictCursor
+                cursorclass=pymysql.cursors.DictCursor,
+                host= os.environ.get("MYSQL_HOST", "localhost"),
+                password=os.environ.get("MYSQL_PASSWORD", ""),
+                port=int(os.environ.get("MYSQL_PORT", 3306)),
+                user=os.environ.get("MYSQL_USER", "root"),
             )
             self.tcursor = self.databaseConnection.cursor()
         except pymysql.MySQLError as e:
@@ -107,13 +101,13 @@ def getShortUserProfile(userId: int):
      return cursor.fetchone()
 
 
-    #  if(userId != '4'):
+    #  if(userId != '1'):
     # else:
     # # Is School Account
     #     user = {}
-    #     user['UserId'] = 4
+    #     user['UserId'] = 1
     #     user['Username'] = 'xclout'
-    #     user['SchoolId'] = 4
+    #     user['SchoolId'] = 1
     #     user['ProfilePicture'] = 'https://xclout.com/assets/img/logo.png'
     #     user['Verified'] = 1
     #     user['SchoolPost'] = 0

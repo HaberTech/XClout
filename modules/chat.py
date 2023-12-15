@@ -42,7 +42,9 @@ def getChatContacts(user_id):
     for contact in contacts:
         otherUserId = contact['UserId_From'] if contact['UserId_From'] != user_id else contact['UserId_To']
         contact['OtherUser'] = getShortUserProfile(otherUserId)
-
+    
+    if(len(contacts) == 0):
+        return json.dumps([])
     return contacts
 
 def sendGroupMessage(group_id, from_user_id, message):

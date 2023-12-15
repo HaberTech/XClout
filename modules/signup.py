@@ -1,7 +1,8 @@
 import os
 from exceptiongroup import catch
 from flask import request as FlaskRequest, session as FlaskSession
-from modules.main import databaseConnection, app
+from modules.main import databaseConnection
+
 
 def signUp(request: FlaskRequest, saveDirectory: str):
     username: str = request.form.get('userName')
@@ -57,7 +58,7 @@ def loginUser(request: FlaskRequest, session: FlaskSession):
     session['userId'] = user['UserId']
     return 'Logged-In', 200
 
-@app.route('/isUsernameTaken/<username>')
+# @app.route('/isUsernameTaken/<username>')
 # Check if username is taken
 def isUsernameTaken(username: str):
     cursor = databaseConnection.cursor()
