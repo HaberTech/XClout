@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:intl/intl.dart' as intl;
@@ -6,6 +9,8 @@ import 'package:xclout/backend/main_api.dart';
 
 import 'package:xclout/backend/widgets.dart';
 import 'package:xclout/backend/universal_imports.dart';
+import 'package:xclout/backend/globals.dart' as globals;
+import 'package:xclout/screens/account/signup.dart';
 import 'package:xclout/screens/homescreen/post_comments.dart';
 
 part 'posts_card.g.dart';
@@ -123,37 +128,6 @@ class PostCard extends StatefulWidget {
 
   @override
   State<PostCard> createState() => _PostCardState();
-
-  // static Future<List<dynamic>> loadStrings() async {
-  //   List<dynamic> allPosts = [];
-  //   final String gayazaPosts =
-  //       await rootBundle.loadString('assets/schoolMedias/GYZA_media_list.json');
-  //   final String namilyangoPosts =
-  //       await rootBundle.loadString('assets/schoolMedias/NGO_media_list.json');
-
-  //   List gayazaPostsList = jsonDecode(gayazaPosts);
-  //   List namilyangoPostsList = jsonDecode(namilyangoPosts);
-  //   allPosts.addAll(gayazaPostsList);
-  //   allPosts.addAll(namilyangoPostsList);
-
-  //   // Sort all posts by date
-  //   allPosts.sort((a, b) {
-  //     var adate = a['taken_at'];
-  //     var bdate = b['taken_at'];
-  //     return -adate.compareTo(bdate);
-  //   });
-
-  //   // Remove duplicates
-  //   Set uniquePosts = {};
-  //   List deduplicatedPosts = [];
-  //   for (var post in allPosts) {
-  //     if (uniquePosts.add(post)) {
-  //       deduplicatedPosts.add(post);
-  //     }
-  //   }
-
-  //   return deduplicatedPosts;
-  // }
 }
 
 class _PostCardState extends State<PostCard> {
@@ -170,23 +144,31 @@ class _PostCardState extends State<PostCard> {
         // Number of comments
         GestureDetector(
           onTap: () {
-            Navigator.push(
+            _continueElseLogin(ifLoggedIn: () {
+              Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        PostComments(postId: widget.post.postId)));
+                  builder: (context) =>
+                      PostComments(postId: widget.post.postId),
+                ),
+              );
+            });
           },
-          child: Text(
-            "     ${widget.post.postStats['NumberOfComments']}  Comments",
-            style: const TextStyle(fontWeight: FontWeight.normal),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 18.0),
+            child: Text(
+              "${widget.post.postStats['NumberOfComments']}  Comments",
+              style: const TextStyle(fontWeight: FontWeight.normal),
+            ),
           ),
         ),
-        // Parse date string
-        // Format date
-        // Display formatted date
-        Text(
-          '     ${intl.DateFormat.yMMMMd().format(DateTime.parse(widget.post.dateAdded))}',
-          style: const TextStyle(color: Colors.grey),
+        Padding(
+          padding: const EdgeInsets.only(left: 18.0),
+          child: Text(
+            intl.DateFormat.yMMMMd()
+                .format(DateTime.parse(widget.post.dateAdded)),
+            style: const TextStyle(color: Colors.grey),
+          ),
         ),
       ],
     );
@@ -202,22 +184,24 @@ class PostCardCaptionAndComments extends StatelessWidget {
   final PostCard widget;
   @override
   Widget build(BuildContext context) {
-    return RichText(
-      maxLines: 5,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: const TextStyle(fontSize: 16.0, color: Colors.white),
-        text: "     ",
-        children: <TextSpan>[
-          TextSpan(
-            text: widget.post.user['Username']! + " ",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          TextSpan(
-            text: widget.post.caption,
-            style: const TextStyle(fontWeight: FontWeight.normal),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18.0),
+      child: Text.rich(
+        TextSpan(
+          style: const TextStyle(fontSize: 16.0, color: Colors.white),
+          children: <TextSpan>[
+            TextSpan(
+              text: widget.post.user['Username']! + " ",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextSpan(
+              text: widget.post.caption,
+              style: const TextStyle(fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -260,23 +244,32 @@ class _PostCardReactionButtonsState extends State<PostCardReactionButtons> {
             IconButton(
               icon: Icon(Icons.thumb_up_outlined,
                   color: (likeStatus == 'like') ? Colors.blue : Colors.grey),
-              onPressed: () async {
-                await MainApiCall()
-                    .callEndpoint(endpoint: '/likeOrDislikePost', fields: {
-                  'postId': widget.widget.post.postId.toString(),
-                  'likeSetting': 'like',
-                  'removeReaction':
-                      (likeStatus == 'like') ? 1.toString() : 0.toString(),
-                });
-                setState(() {
-                  if (likeStatus == 'like') {
-                    numberOfLikes -= 1;
-                    likeStatus == 'none';
-                  } else {
-                    numberOfLikes += 1;
-                    likeStatus == 'like';
-                  }
-                });
+              onPressed: () {
+                _continueElseLogin(ifLoggedIn: () {
+                  FirebaseAnalytics.instance.logEvent(
+                    name: 'like_post',
+                    parameters: {'IsUserLoggedIn': globals.isLoggedIn.toString()},
+                  );
+                  MainApiCall()
+                      .callEndpoint(endpoint: '/likeOrDislikePost', fields: {
+                    'postId': widget.widget.post.postId.toString(),
+                    'likeSetting': 'like',
+                    'removeReaction':
+                        (likeStatus == 'like') ? 1.toString() : 0.toString(),
+                  });
+                  setState(() {
+                    if (likeStatus == 'like') {
+                      numberOfLikes -= 1;
+                      likeStatus = 'none';
+                    } else {
+                      if (likeStatus == 'dislike') {
+                        numberOfDislikes -= 1;
+                      }
+                      numberOfLikes += 1;
+                      likeStatus = 'like';
+                    }
+                  });
+                }); // Continue if logged in
               },
             ),
             Text("$numberOfLikes"),
@@ -288,21 +281,30 @@ class _PostCardReactionButtonsState extends State<PostCardReactionButtons> {
               icon: Icon(Icons.thumb_down_outlined,
                   color: (likeStatus == 'dislike') ? Colors.blue : Colors.grey),
               onPressed: () {
-                MainApiCall()
-                    .callEndpoint(endpoint: '/likeOrDislikePost', fields: {
-                  'postId': widget.widget.post.postId.toString(),
-                  'likeSetting': 'dislike',
-                  'removeReaction':
-                      (likeStatus == 'dislike') ? 1.toString() : 0.toString(),
-                });
-                setState(() {
-                  if (likeStatus == 'dislike') {
-                    numberOfDislikes -= 1;
-                    likeStatus == 'none';
-                  } else {
-                    numberOfDislikes += 1;
-                    likeStatus == 'dislike';
-                  }
+                _continueElseLogin(ifLoggedIn: () {
+                  FirebaseAnalytics.instance.logEvent(
+                    name: 'dislike_post',
+                    parameters: {'IsUserLoggedIn': globals.isLoggedIn.toString()},
+                  );
+                  MainApiCall()
+                      .callEndpoint(endpoint: '/likeOrDislikePost', fields: {
+                    'postId': widget.widget.post.postId.toString(),
+                    'likeSetting': 'dislike',
+                    'removeReaction':
+                        (likeStatus == 'dislike') ? 1.toString() : 0.toString(),
+                  });
+                  setState(() {
+                    if (likeStatus == 'dislike') {
+                      numberOfDislikes -= 1;
+                      likeStatus = 'none';
+                    } else {
+                      if (likeStatus == 'like') {
+                        numberOfLikes -= 1;
+                      }
+                      numberOfDislikes += 1;
+                      likeStatus = 'dislike';
+                    }
+                  });
                 });
               },
             ),
@@ -314,11 +316,17 @@ class _PostCardReactionButtonsState extends State<PostCardReactionButtons> {
             IconButton(
               icon: const Icon(Icons.comment_rounded),
               onPressed: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            PostComments(postId: widget.widget.post.postId)));
+                _continueElseLogin(ifLoggedIn: () {
+                  FirebaseAnalytics.instance.logEvent(
+                    name: 'comment_post',
+                    parameters: {'IsUserLoggedIn': globals.isLoggedIn.toString()},
+                  );
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              PostComments(postId: widget.widget.post.postId)));
+                });
               },
             ),
             Text(widget.widget.post.postStats['NumberOfComments'].toString()),
@@ -328,7 +336,12 @@ class _PostCardReactionButtonsState extends State<PostCardReactionButtons> {
           children: [
             IconButton(
               icon: const Icon(Icons.telegram_outlined),
-              onPressed: () {},
+              onPressed: () {
+                FirebaseAnalytics.instance.logEvent(
+                  name: 'share_post',
+                  parameters: {'IsUserLoggedIn': globals.isLoggedIn.toString()},
+                );
+              },
             ),
             Text(widget.widget.post.numberOfShares.toString()),
           ],
@@ -395,16 +408,13 @@ class _PostCardBodyState extends State<PostCardBody> {
       carouselController: _controller,
       itemCount: widget.post.resources.length,
       itemBuilder: (BuildContext context, int index, int realIndex) {
-        return SizedBox(
-          width: MediaQuery.of(context).size.width,
-          child: InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: MyCORSImage.network(
-                url: widget.post.resources[index],
-              ),
+        return InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4,
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: MyCORSImage.network(
+              url: widget.post.resources[index],
             ),
           ),
         );
@@ -413,6 +423,7 @@ class _PostCardBodyState extends State<PostCardBody> {
     );
   }
 
+// SHOW POST RESOURCE INDEX
   Positioned postIndex() {
     return Positioned.directional(
       top: 0,
@@ -480,10 +491,27 @@ class _PostCardBodyState extends State<PostCardBody> {
   }
 
   CarouselOptions postCarouselOptions() {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    double viewportFraction;
+    if (screenWidth < 600) {
+      // Phone
+      viewportFraction = 0.95;
+    } else if (screenWidth < 1200) {
+      // Tablet
+      viewportFraction = 0.6;
+    } else {
+      // Desktop
+      viewportFraction = 0.4;
+    }
+
+    // Calculate the height based on the screen width, but don't let it exceed a certain value
+    final double resourceHeight =
+        math.min(screenWidth, 600); // 600 is the maximum height
+
     return CarouselOptions(
-      height: 400,
-      aspectRatio: 16 / 9,
-      viewportFraction: 0.95,
+      height: resourceHeight,
+      aspectRatio: 1,
+      viewportFraction: viewportFraction,
       initialPage: 0,
       enableInfiniteScroll: false,
       enlargeCenterPage: true,
@@ -492,5 +520,52 @@ class _PostCardBodyState extends State<PostCardBody> {
       },
       scrollDirection: Axis.horizontal,
     );
+  }
+}
+
+void _continueElseLogin({required Function ifLoggedIn}) async {
+  final BuildContext localContext = navigatorKey.currentState!.context;
+  final bool isLoggedIn =
+      globals.isLoggedIn; // Check if logged in using global file
+  if (isLoggedIn) {
+    ifLoggedIn();
+  } else {
+    if (localContext.mounted) {
+      showDialog(
+          context: localContext,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('You are not logged in!',
+                  style: TextStyle(fontSize: 20)),
+              content: const Text(
+                'Login to like, comment, share, give you opinion and be able to post and message others.',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Later!', style: TextStyle(fontSize: 20)),
+                  onPressed: () {
+                    FirebaseAnalytics.instance
+                        .logEvent(name: 'dialog_dismiss_login');
+                    Navigator.of(localContext).pop();
+                  },
+                ),
+                TextButton(
+                  child: const Text('LOGIN', style: TextStyle(fontSize: 20)),
+                  onPressed: () {
+                    FirebaseAnalytics.instance.logEvent(name: 'dialog_login');
+                    Navigator.of(localContext).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const SignUpScreen(
+                          formToShow: SignUpForm(),
+                          title: "Sign Up",
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          });
+    }
   }
 }

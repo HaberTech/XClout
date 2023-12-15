@@ -10,11 +10,13 @@ class MainApiCall {
   late final String mainApiHostUrl; //Declared in MainApiCall
   // String mainApiHostUrl = "growing-seemingly-monkfish.ngrok-free.app";
 
+  // static const String serverEndpointPrefix = "/api/";
   static const String serverEndpointPrefix = "/api/";
   static const String mainApiHostScheme = "http";
 
   MainApiCall() {
-    mainApiHostUrl = Uri.base.host.isNotEmpty ? Uri.base.host : "localhost";
+    mainApiHostUrl =
+        Uri.base.host.isNotEmpty ? Uri.base.host : "192.168.43.66:8000";
   }
   Future<String> loadCookies() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -28,12 +30,14 @@ class MainApiCall {
   Future<String> callEndpoint(
       {required String endpoint, required Map<String, dynamic>? fields}) async {
     // final Uri uri = Uri.parse("$mainApiHostUrl/$endpoint");
-    final String finalEndpoint = serverEndpointPrefix + endpoint;
+    final String finalEndpoint =
+        (serverEndpointPrefix + endpoint).replaceAll(RegExp(r'(?<!:)//'), '/');
+    // Remove possible occurance of // from the final endpoint;
     final Uri uri = Uri.https(mainApiHostUrl, finalEndpoint, fields);
     final http.Response response = await http.get(
       uri,
       headers: {
-        if (kIsWeb) ...{'cookie': await loadCookies()},
+        if (!kIsWeb) ...{'cookie': await loadCookies()},
       },
     );
     // List<dynamic> queryResponse = [];
@@ -49,13 +53,16 @@ class MainApiCall {
 // The post endpoints are for sending data to the server
   Future<http.Response> callPostEndpoint(
       {required String endpoint, required Map<String, dynamic>? fields}) async {
-    final String finalEndpoint = serverEndpointPrefix + endpoint;
-    final Uri uri = Uri.https(mainApiHostUrl, finalEndpoint, fields);
+    final String finalEndpoint =
+        (serverEndpointPrefix + endpoint).replaceAll(RegExp(r'(?<!:)//'), '/');
+    // Remove possible occurance of // from the final endpoint
+    final Uri uri = Uri.https(mainApiHostUrl, finalEndpoint);
+
     final http.Response response = await http.post(
       uri,
       body: fields,
       headers: {
-        if (kIsWeb) ...{'cookie': await loadCookies()},
+        if (!kIsWeb) ...{'cookie': await loadCookies()},
       },
     );
     if (response.statusCode == 200) {
@@ -71,9 +78,11 @@ class MainApiCall {
       {required Map<String, String> fields,
       required Uint8List schoolIdPhotoBytes,
       required Uint8List verificationPhotoBytes}) async {
-    const String finalEndpoint = "$serverEndpointPrefix/signUp";
+    final String finalEndpoint =
+        ("$serverEndpointPrefix/signUp").replaceAll(RegExp(r'(?<!:)//'), '/');
+    // Remove possible occurance of // from the final endpoint;
     var uri = Uri.https(mainApiHostUrl, finalEndpoint);
-    print(uri.toString());
+    developer.log(uri.toString());
     Map<String, String> response = {};
 
     final http.MultipartRequest request = http.MultipartRequest('POST', uri)
@@ -96,11 +105,11 @@ class MainApiCall {
     final String message = await requestResponse.stream.bytesToString();
 
     if (requestResponse.statusCode == 200) {
-      print('Account Created');
+      developer.log('Account Created');
       response['status'] = 'success';
       response['message'] = message;
     } else if (requestResponse.statusCode == 400) {
-      print('Failed');
+      developer.log('Failed');
       response['status'] = 'failed';
       response['message'] = message;
     }
@@ -114,14 +123,24 @@ class MainApiCall {
 }
 
 class LastViewedPost {
-  static Future<bool> setLastViewPostId(int lastPostId) async {
+  static Future<bool> setLastViewedPostIds(
+      {required int newestViewedPostId,
+      required int oldestViewedPostId}) async {
     final SharedPreferences preferences = await SharedPreferences.getInstance();
-    return await preferences.setString('lastViewPostId', lastPostId.toString());
+    final bool setNewPost =
+        await preferences.setInt('newestViewedPostId', newestViewedPostId);
+    final bool setOldPost =
+        await preferences.setInt('oldestViewedPostId', oldestViewedPostId);
+    return setNewPost && setOldPost;
   }
 
-  static Future<int> getLastViewPostId() async {
+  static Future<Map<String, int>> getLastViewedPostIds() async {
     final SharedPreferences preferences = await SharedPreferences.getInstance();
-    String lastId = preferences.getString('lastViewPostId') ?? '0';
-    return int.parse(lastId);
+    final int newestViewedPostid = preferences.getInt('newestViewedPostId') ?? 0;
+    final int oldestViewedPostid = preferences.getInt('oldestViewedPostId') ?? 0;
+    return {
+      'newestViewedPostId': newestViewedPostid,
+      'oldestViewedPostId': oldestViewedPostid
+    };
   }
 }

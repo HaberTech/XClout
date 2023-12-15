@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'dart:developer' as developer;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
 import 'dart:typed_data';
 
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:xclout/backend/main_api.dart';
@@ -453,8 +451,11 @@ Future<void> signUpUser(BuildContext context) async {
       .then((response) => {
             if (response["status"] == "success")
               {
+                // Log Event
+                FirebaseAnalytics.instance
+                    .logSignUp(signUpMethod: 'User Signed up'),
                 // Navigate to the next screen
-                Navigator.push(
+                Navigator.pushReplacement(
                   localContext,
                   MaterialPageRoute(
                     builder: (localContext) => const SignUpScreen(

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:xclout/backend/main_api.dart';
 import 'package:xclout/backend/widgets.dart';
@@ -14,11 +15,11 @@ class ChatsPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Chats"),
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(48.0),
+          preferredSize: const Size.fromHeight(48.0),
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Search',
                 border: OutlineInputBorder(),
               ),
@@ -43,6 +44,13 @@ class ChatsList extends StatefulWidget {
 
 class _ChatsListState extends State<ChatsList> {
   @override
+  void initState() {
+    super.initState();
+    // Set current screen for analytics
+    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'chats_screen');
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder(
         future: _getChatList(),
@@ -54,7 +62,15 @@ class _ChatsListState extends State<ChatsList> {
           } else {
             // Snapshot has data -- Chats loaded
             List<dynamic> contacts = jsonDecode(snapshot.data.toString());
-            print(contacts);
+
+            // If contacts is empty, show a message
+            if (contacts.isEmpty) {
+              return const Center(
+                child: Text(
+                    'No chats available. This works.. Message your friends to get started\n How about joining your class group?'),
+              );
+            }
+
             return ListView.builder(
               itemCount: contacts.length,
               itemBuilder: (BuildContext context, int index) {
@@ -86,11 +102,11 @@ class _ChatsListState extends State<ChatsList> {
           }
         });
   }
+}
 
-  Future<String> _getChatList() {
-    return MainApiCall()
-        .callEndpoint(endpoint: 'getConversation', fields: {'type': 'list'});
-  }
+Future<String> _getChatList() {
+  return MainApiCall()
+      .callEndpoint(endpoint: 'getConversation', fields: {'type': 'list'});
 }
 
 class ChatScreen extends StatelessWidget {
@@ -138,7 +154,7 @@ class ChatScreen extends StatelessWidget {
       'type': 'direct',
       'receiverId': receiverId.toString(),
     });
-    final TextEditingController _message = TextEditingController();
+    final TextEditingController message = TextEditingController();
     // SEND MESSAGES BAR
     return Container(
       padding: const EdgeInsets.all(10),
@@ -151,7 +167,7 @@ class ChatScreen extends StatelessWidget {
                 child: TextFormField(
                   maxLines:
                       null, // this allows the TextField to expand as the user types
-                  controller: _message,
+                  controller: message,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.all(10),
                     hintText: "Type a message",
@@ -163,7 +179,7 @@ class ChatScreen extends StatelessWidget {
             IconButton(
               onPressed: () {
                 // SEND MESSAGE
-                _sendMessage(_message, context);
+                _sendMessage(message, context);
               },
               icon: const Icon(
                 Icons.send,

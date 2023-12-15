@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:xclout/backend/main_api.dart';
 import 'package:xclout/backend/universal_imports.dart';
 import 'package:xclout/backend/widgets.dart';
@@ -26,10 +27,22 @@ class Comment extends StatelessWidget {
   }
 }
 
-class PostComments extends StatelessWidget {
+class PostComments extends StatefulWidget {
   final int postId;
 
   const PostComments({super.key, required this.postId});
+
+  @override
+  State<PostComments> createState() => _PostCommentsState();
+}
+
+class _PostCommentsState extends State<PostComments> {
+  @override
+  void initState() {
+    super.initState();
+    // Set current screen for analytics
+    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'comments_screen');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +53,7 @@ class PostComments extends StatelessWidget {
       body: Column(
         children: [
           FutureBuilder(
-            future: _getPostComments(postId: postId),
+            future: _getPostComments(postId: widget.postId),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
                 final List<dynamic> comments = snapshot.data!;
@@ -93,15 +106,26 @@ class PostComments extends StatelessWidget {
         'parentCommentId': parentCommentId.toString(),
         'comment': comment,
       },
-    ).then(
-      (response) => ScaffoldMessenger.of(context).showSnackBar(
+    ).then((response) {
+      // Log Event
+      FirebaseAnalytics.instance.logEvent(
+        name: 'comment_on_post',
+        parameters: {
+          'status': response,
+          'postId': postId,
+          'parentCommentId': parentCommentId,
+          'comment': comment,
+        },
+      );
+      // Show SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text((response == 'Success')
               ? 'Commented Saved Successfully'
               : ' Something went Wrong'),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _commentInputSection(BuildContext context) {
@@ -130,12 +154,14 @@ class PostComments extends StatelessWidget {
             IconButton(
               onPressed: () {
                 _commentOnPost(
-                  postId: postId,
+                  postId: widget.postId,
                   parentCommentId: 0,
                   comment: comment.text,
                   context: context,
                 );
                 comment.clear();
+                // Reload Comments
+                setState(() {});
               },
               icon: const Icon(
                 Icons.send,

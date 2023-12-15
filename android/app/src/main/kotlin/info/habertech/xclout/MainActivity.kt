@@ -1,4 +1,4 @@
-package com.example.xclout
+package info.habertech.xclout
 
 import io.flutter.embedding.android.FlutterActivity
 

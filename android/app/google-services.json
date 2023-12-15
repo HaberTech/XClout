@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "260278994796",
+    "project_id": "xclout-1",
+    "storage_bucket": "xclout-1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260278994796:android:4ea163ab607fbb18245549",
+        "android_client_info": {
+          "package_name": "info.habertech.xclout"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkoDt80snQJlw1rAD0xjQRS_gbmm4fkS8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

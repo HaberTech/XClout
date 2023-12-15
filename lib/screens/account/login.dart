@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:http/http.dart' as http;
 import 'dart:developer' as developer;
 
@@ -9,6 +10,7 @@ import 'package:xclout/screens/account/signup.dart';
 import 'package:xclout/screens/homescreen/homescreen.dart';
 
 import 'package:xclout/backend/universal_imports.dart';
+import 'package:xclout/backend/globals.dart' as globals;
 
 Map<String, TextEditingController> _formTextValues = {
   "username": TextEditingController(),
@@ -117,8 +119,11 @@ void _loginUser(
     developer.log('New Cookie => ');
     developer.log(prefs.getString('cookie').toString());
 
+    //Log the login Event
+    FirebaseAnalytics.instance.logLogin();
+    globals.isLoggedIn = true; // Set global isLoggedIn variable to true
     // Navigate to Feeds pages
-    navigatorKey.currentState!.push(
+    navigatorKey.currentState!.pushReplacement(
       MaterialPageRoute(
         builder: (context) => const FeedPage(title: 'XClout'),
       ),

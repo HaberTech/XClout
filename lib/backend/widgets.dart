@@ -62,3 +62,32 @@ class UserNameAndPost extends StatelessWidget {
     );
   }
 }
+
+// Dialog if user is not logged in
+Future<void> notLoggedInDialog(BuildContext context) async {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false, // user must tap button!
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title:
+            const Text('You are not logged in', style: TextStyle(fontSize: 20)),
+        content: const SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              Text('Please log in to continue'),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('OK', style: TextStyle(fontSize: 20)),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
