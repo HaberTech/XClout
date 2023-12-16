@@ -151,7 +151,7 @@ def getPostsOfSchool(userId: int, newestViewedPostId: int, oldestViewedPostId: i
      cursor = databaseConnection.cursor()
      
      # if the ids are Not provided or any is 0 then just get the newest posts
-     if newestViewedPostId is None or oldestViewedPostId is None:
+     if newestViewedPostId is None or oldestViewedPostId is None or newestViewedPostId == 0 or oldestViewedPostId == 0:
           sqlQuery = f'''
                SELECT Posts.*, Schools.SchoolName, Schools.SchoolId, Schools.SchoolLogo, Schools.IG_Username
                FROM Posts 
