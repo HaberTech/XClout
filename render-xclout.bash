@@ -1,4 +1,5 @@
 #!/bin/bash
+pip install --upgrade pip
 git clone -b flutter https://${GIT_USERANME}:${GIT_AUTH}@github.com/HaberTech/XClout.git flutter
 git clone -b backend https://${GIT_USERANME}:${GIT_AUTH}@github.com/HaberTech/XClout.git backend
 ls
