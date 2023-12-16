@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.secret_key = 'TheTempoaryXcloutDebugSecret'
 CORS(app)
 FLUTTER_BASE_DIRECTORY:str = os.environ.get('FLUTTER_BASE_DIRECTORY', '/Users/cedrick/Projects/Flutter/Xclout/build/web')
+print("Cureent Flutter Base Directory => ", FLUTTER_BASE_DIRECTORY)
 
 # Ping this to check if server is up
 @app.route('/api/ping')
