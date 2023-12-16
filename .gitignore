@@ -49,4 +49,4 @@ build/*
 # Allow 'build/web/'
 !build/web/
 # Ignore other files or directories inside 'build/' (if any)
-build/**/*
+# build/**/*
