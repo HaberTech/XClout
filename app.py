@@ -11,7 +11,7 @@ from modules.chat import getChatContacts, getConversation, sendGroupMessage, sen
 app = Flask(__name__)
 app.secret_key = 'TheTempoaryXcloutDebugSecret'
 CORS(app)
-FLUTTER_BASE_DIRECTORY:str = os.environ.get('FLUTTER_BASE_DIRECTORY', '/Users/cedrick/Projects/Flutter/Xclout/build/web')
+FLUTTER_BASE_DIRECTORY = os.path.abspath(os.path.join(os.path.dirname(__file__), os.environ.get('FLUTTER_BASE_DIRECTORY')))
 
 # Ping this to check if server is up
 @app.route('/api/ping')
