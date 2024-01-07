@@ -46,6 +46,10 @@ def likeOrDislikePost(post_id, likeSetting:str, removeReaction):
     return 'Success', 200
 
 def commentOnPost(post_id, comment, parentCommentId):
+    # Check if parentCommentId is 0 then set it to SQL NULL
+    if parentCommentId == '0':
+        parentCommentId = None
+        
     cursor = databaseConnection.cursor()
     cursor.execute("""
         INSERT INTO Comments(PostId, UserId, Comment, ParentCommentId)

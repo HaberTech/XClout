@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import json
 import os
 from random import randint
+import re
 from time import sleep
 
 from instagrapi import *
@@ -14,17 +15,47 @@ from regex import P
 sys.path.append('/Users/cedrick/Projects/Python/Xclout-Backend')
 from modules.main import databaseConnection
 
+# Store the resource in the approipriate folders
 
-# # GO THROUGH SCHOOLS IN DATABASE
-# cursor = databaseConnection.cursor()
-# cursor.execute("SELECT SchoolId, SchoolName, IG_Username FROM Schools")
-# schools = cursor.fetchall()
+import os
+import requests
 
+def storePostResources(school_ig_username, resources, resource_types):
+    newResources = []
+    mainResourceFolder = ''
 
-# for school in schools:
-#     school_id = school['SchoolId']
-#     school_name = school['SchoolName']
-#     school_ig_username = school['IG_Username']
+    subFolder = 'images' if resource_types[0] == 1 else 'videos'
+
+    for resource in resources:
+        # Split the url then remove the query string
+        ig_filename = resource.split('/')[-1].split('?')[0]
+        filename = school_ig_username + '--' + ig_filename
+        filepath = os.path.join(mainResourceFolder, subFolder, filename)
+
+        # If file exists in the folder, skip it
+        if os.path.exists(filepath):
+            newResources.append(filename)
+            continue
+
+        # Download the file
+        try:
+            print(f'Downloading {resource}...')
+            response = requests.get(resource, stream=True)
+            response.raise_for_status()  # Raise an exception if the GET request was unsuccessful
+
+            # Save the file
+            with open(filepath, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            newResources.append(filename)
+            # print(f'Successfully downloaded {resource}!')
+        except Exception as e:
+            print(f'Failed to download {resource}!')
+            print(e)
+
+    return newResources
+
 
 def storeSchoolsLastCheckedDate(schoolId:int, school_ig_username:str):
     # Load the existing data
@@ -58,12 +89,21 @@ def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List
     global totalNoOfPostsStored
     cursor = databaseConnection.cursor()
 
-    for post in media:
-        # get the resources 'thumbnail_url's and use them as resources
-        resources = [resource.thumbnail_url for resource in post.resources]
+    for post in media:        
         # get the resource types and use them as resource types
         resource_types = [resource.media_type for resource in post.resources]
+        oldResources = []
 
+        # get the resources urls and use them to download the neccessary files
+        for resource in post.resources:
+            if resource.media_type == 1:
+                # Image
+                oldResources.append(str(resource.thumbnail_url)) 
+            else:
+                # Video...
+                oldResources.append(str(resource.video_url))
+
+        resources = storePostResources(school_ig_username=school_ig_username, resources=oldResources, resource_types=resource_types);
 
         cursor.execute("""
             INSERT INTO Posts (UserId, SchoolId, Caption, Resources, ResourceTypes, SourcePlatform, SourceUsername, MediaPk, DateAdded, NumberOfShares)
@@ -103,8 +143,8 @@ def refreshAllSchoolsPosts():
     print('Refreshing posts for ' + str(len(schools)) + ' schools...')
     schoolsToAvoid:List = []
     #  ['heritage.uganda', 'gisuinfo', '7hillsinternationalschool']
-    schoolsDone:List  = ['ig.bweranyangi', 'ig_men.go', 'ig_kawempe_muslim',
-    # 'buddo_ss_001', 'greenhillacademyug', 'ig_spena', 'kabojja_international__school', 'gisuinfo','hana_ig', 'viennacollegenamugongo', 'heritage.uganda', '7hillsinternationalschool','ig_viva_', 'elite_coolkids', 'agakhan.high', 'ig.gayaza', 'kiira_college','smack_ist','ig_namugongo','macosians_','ig_maryhill_', 'ig_tricona', 'ig.sunsas', 'ig.namagunga', 'ig._namilyango','ndejje.an', 'ntare_sch', 'ig_joginsa1', 'rubaga.girls_ss', 'olgc_ig', 'bishopciprianokihangire', 'smaskgram_official','seetahighschools','ig._taibah'
+    schoolsDone:List  = [
+        # 'ig.bweranyangi', 'ig_men.go', 'kawe_mpe_hub256, 'buddo_ss_001', 'greenhillacademyug', 'ig_spena', 'kabojja_international__school', 'gisuinfo','hana_ig', 'viennacollegenamugongo', 'heritage.uganda', '7hillsinternationalschool','ig_viva_', 'elite_coolkids', 'agakhan.high', 'ig.gayaza', 'kiira_college','smack_ist','ig_namugongo','macosians_','ig_maryhill_', 'ig_tricona', 'ig.sunsas', 'ig.namagunga', 'ig._namilyango','ndejje.an', 'ntare_sch', 'ig_joginsa1', 'rubaga.girls_ss', 'olgc_ig', 'bishopciprianokihangire', 'smaskgram_official','seetahighschools','ig._taibah'
     ]
 
         # Load file /modules/server/schools_done.json
@@ -116,8 +156,8 @@ def refreshAllSchoolsPosts():
         school_ig_username = school['IG_Username']
 
         # Check if the school's Instagram username or ID is None or empty
-        if not school_ig_username or not school_id:
-            print('Skipping due to bad school object', school)
+        if not school_ig_username or not school_id or school_ig_username in ['ig_kawempe_muslim']:
+            print('Skipping due to bad school object or forbidden', school)
             continue
         print(schoolsLastCheckedDate)
         print(school_id, school_ig_username)
@@ -141,8 +181,7 @@ def refreshAllSchoolsPosts():
 
 def initialiseIgClient():
     cl = Client();
-    # USERNAME = 'ask_ur_mom_to_follow_me_coz_i'
-    USERNAME = 'dking_rw'
+    USERNAME = 'ask_ur_mom_to_follow_me_coz_i'
     PASSWORD = 'donaldtrump2'
     settings_path = f'modules/server/{USERNAME}-settings.json'
 
@@ -173,8 +212,8 @@ if __name__ == '__main__':
 
     cl = initialiseIgClient();
     try:
-        thisBot = cl.account_info()
-        print(f"Logged in as {thisBot.username}\n")
+        thisBot = cl.get_timeline_feed()
+        print(f"Logged in as successfully")
         try: refreshAllSchoolsPosts();
         except Exception as e : raise e
     except Exception as e2:

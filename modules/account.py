@@ -219,8 +219,9 @@ def getPostsOfSchool(userId: int, newestViewedPostId: int, oldestViewedPostId: i
           post['User']['VerificationType'] = 'IgSchool'
 
           post['User']['Verified'] = 1
-          post['User']['ShowPost'] = 1
-          post['User']['SchoolPost'] = 'IG'
+          post['User']['ShowPost'] = 0
+          # TODO: Add school post
+          post['User']['SchoolPost'] = ''
 
           # Convert date to ISO format
           if 'DateAdded' in post:
