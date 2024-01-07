@@ -1,32 +1,27 @@
-from datetime import datetime, timedelta
-import json
 import os
-from random import randint
-import re
+import json
+import requests
+
 from time import sleep
+from typing import List
+from random import randint
+from datetime import datetime, timedelta
 
 from instagrapi import *
 from instagrapi.types import Media
 
-from typing import List
-import sys
 
-from regex import P
+import sys
 sys.path.append('/Users/cedrick/Projects/Python/Xclout-Backend')
 from modules.main import databaseConnection
 
 # Store the resource in the approipriate folders
-
-import os
-import requests
-
 def storePostResources(school_ig_username, resources, resource_types):
     newResources = []
     mainResourceFolder = ''
 
-    subFolder = 'images' if resource_types[0] == 1 else 'videos'
-
-    for resource in resources:
+    for i, resource in enumerate(resources):
+        subFolder = 'images' if resource_types[i] == 1 else 'videos'
         # Split the url then remove the query string
         ig_filename = resource.split('/')[-1].split('?')[0]
         filename = school_ig_username + '--' + ig_filename
@@ -39,7 +34,7 @@ def storePostResources(school_ig_username, resources, resource_types):
 
         # Download the file
         try:
-            print(f'Downloading {resource}...')
+            print(f'Downloading...')
             response = requests.get(resource, stream=True)
             response.raise_for_status()  # Raise an exception if the GET request was unsuccessful
 
@@ -214,8 +209,7 @@ if __name__ == '__main__':
     try:
         thisBot = cl.get_timeline_feed()
         print(f"Logged in as successfully")
-        try: refreshAllSchoolsPosts();
-        except Exception as e : raise e
+        refreshAllSchoolsPosts();
     except Exception as e2:
         print("Login Error. FUCK!!!!!!... Retrying\n")
         try:
