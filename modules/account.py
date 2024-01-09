@@ -93,138 +93,140 @@ def getLastViewedPostIds(userId: int, newestViewedPostId: int, oldestViewedPostI
      # If they are newer and older then update the database
      # Return the true newestViewedPostId and oldestViewedPostId
      cursor = databaseConnection.cursor()
-     
-def updateViewedPostIds(userId: int, newestViewedPostId: int, oldestViewedPostId: int):
 
-     # If the user is not logged in then return the newest and oldest viewed post IDs
+def updateViewedPostIds(userId: int, newestViewedPostId: int, oldestViewedPostId: int):
+    
      if userId == 2 or newestViewedPostId == 0 or oldestViewedPostId == 0:
+           # If the user is not logged in then return the newest and oldest viewed post IDs
           return newestViewedPostId, oldestViewedPostId
-     # Return if user is not logged in
      
      cursor = databaseConnection.cursor()
-    # Fetch the DateAdded of the newest and oldest viewed post IDs from the database
+
+     # Create a temporary table with row numbers
+     # cursor.execute("""
+     #      SET @row_number = 0;
+     #      CREATE TEMPORARY TABLE TempTable AS
+     #      SELECT (@row_number:=@row_number + 1) AS DateArrangedId, t.*
+     #      FROM (
+     #           SELECT Posts.*, Schools.SchoolName, Schools.SchoolId, Schools.SchoolLogo, Schools.IG_Username
+     #           FROM Posts 
+     #           INNER JOIN Schools ON Posts.SchoolId = Schools.SchoolId 
+     #           WHERE Posts.UserId = 1
+     #           ORDER BY Posts.DateAdded DESC, Posts.PostId DESC
+     #      ) t;
+     # """)
+
+     # Update the Users table with the greatest and least viewed post IDs
+     # The GREATEST function is used to update the NewestViewedPostId. It compares two values: the DateArrangedId of the newestViewedPostId from the TempTable, and the DateArrangedId of the current NewestViewedPostId in the Users table. It sets NewestViewedPostId to the greater of these two values.
+     # The LEAST function is used to update the OldestViewedPostId. It compares two values: the DateArrangedId of the oldestViewedPostId from the TempTable, and the DateArrangedId of the current OldestViewedPostId in the Users table. It sets OldestViewedPostId to the lesser of these two values.
+     #  IF NULL, the IFNULL function will return 0. This is done to ensure that the GREATEST and LEAST functions have valid values to compare.
      cursor.execute(f"""
-        SELECT 
-            (SELECT DateAdded FROM Posts WHERE PostId = {newestViewedPostId}) as newestDate,
-            (SELECT DateAdded FROM Posts WHERE PostId = {oldestViewedPostId}) as oldestDate
-    """)
-     result = cursor.fetchone()
-     newestViewedPostDate = result['newestDate'] if result else None
-     oldestViewedPostDate = result['oldestDate'] if result else None
+          UPDATE Users
+          SET 
+               NewestViewedPostId = GREATEST(
+                    (SELECT DateArrangedId FROM TempTable WHERE PostId = {newestViewedPostId}),
+                    IFNULL((SELECT DateArrangedId FROM TempTable WHERE PostId = NewestViewedPostId), 0)
+               ),
+               OldestViewedPostId = LEAST(
+                    (SELECT DateArrangedId FROM TempTable WHERE PostId = {oldestViewedPostId}),
+                    IFNULL((SELECT DateArrangedId FROM TempTable WHERE PostId = OldestViewedPostId), 0)
+               )
+          WHERE UserId = {userId}
+     """)
+     databaseConnection.commit()
 
-    # Fetch the DateAdded of the NewestViewedPostId and OldestViewedPostId from the Users table
+     # Fetch the updated NewestViewedPostId and OldestViewedPostId from the Users table
      cursor.execute(f"""
-        SELECT 
-            (SELECT DateAdded FROM Posts WHERE PostId = NewestViewedPostId) as dbNewestViewedPostDate,
-            (SELECT DateAdded FROM Posts WHERE PostId = OldestViewedPostId) as dbOldestViewedPostDate,
-             NewestViewedPostId as dbNewestViewedPostId,
-             OldestViewedPostId as dbOldestViewedPostId            
-        FROM Users 
-        WHERE UserId = {userId}
-    """)
+          SELECT NewestViewedPostId, OldestViewedPostId
+          FROM Users 
+          WHERE UserId = {userId}
+     """)
      result = cursor.fetchone()
-     dbNewestViewedPostDate = result['dbNewestViewedPostDate'] if result else None
-     dbOldestViewedPostDate = result['dbOldestViewedPostDate'] if result else None
-     dbNewestViewedPostId = result['dbNewestViewedPostId'] if result else None
-     dbOldestViewedPostId = result['dbOldestViewedPostId'] if result else None
+     newestViewedPostId = result['NewestViewedPostId']
+     oldestViewedPostId = result['OldestViewedPostId']
 
-    # Check if the provided post IDs are newer and older than the ones in the database
-     if (dbNewestViewedPostDate is None or newestViewedPostDate > dbNewestViewedPostDate) and (dbOldestViewedPostDate is None or oldestViewedPostDate < dbOldestViewedPostDate):
-        # If they are, update the Users table
-        cursor.execute(f"""
-            UPDATE Users
-            SET 
-                NewestViewedPostId = {newestViewedPostId},
-                OldestViewedPostId = {oldestViewedPostId}
-            WHERE UserId = {userId}
-        """)
-        databaseConnection.commit()
-     else:
-        # If they are not, return the true newest and oldest viewed post IDs from the database
-        newestViewedPostId = dbNewestViewedPostId
-        oldestViewedPostId = dbOldestViewedPostId
-
-    # Return the true newest and oldest viewed post IDs
+     # Return the updated newest and oldest viewed post IDs
      return newestViewedPostId, oldestViewedPostId
+
 
 def getPostsOfSchool(userId: int, newestViewedPostId: int, oldestViewedPostId: int):
      cursor = databaseConnection.cursor()
-     
-     # if the ids are Not provided or any is 0 then just get the newest posts
-     if newestViewedPostId is None or oldestViewedPostId is None or newestViewedPostId == 0 or oldestViewedPostId == 0:
-          sqlQuery = f'''
+     # Create a temporary table with row numbers
+     cursor.execute("""
+          SET @row_number = 0;
+          CREATE TEMPORARY TABLE TempTable AS
+          SELECT (@row_number:=@row_number + 1) AS DateArrangedId, t.*
+          FROM (
                SELECT Posts.*, Schools.SchoolName, Schools.SchoolId, Schools.SchoolLogo, Schools.IG_Username
                FROM Posts 
                INNER JOIN Schools ON Posts.SchoolId = Schools.SchoolId 
-               WHERE Posts.UserId = {1}
+               WHERE Posts.UserId = 1
                ORDER BY Posts.DateAdded DESC, Posts.PostId DESC
-               LIMIT 20
-          '''
+          ) t;
+     """)
+
+     # If the IDs are not provided or any is 0, then just get the 20 newest posts
+     if newestViewedPostId is None or oldestViewedPostId is None or newestViewedPostId == 0 or oldestViewedPostId == 0:
+          cursor.execute("SELECT * FROM TempTable LIMIT 20;")
+          posts = cursor.fetchall()
      else: 
-          # Update the newestViewedPostId and oldestViewedPostId in the database
+          # Get the id of the newest and oldest viewed posts will return the same values if the user has not viewed any posts or not logged in
           newestViewedPostId, oldestViewedPostId = updateViewedPostIds(userId, newestViewedPostId, oldestViewedPostId)
-          
-          # Fetch the DateAdded of the newest and oldest viewed post IDs from the database
-          sqlQuery = f'''
-          (
-          SELECT Posts.*, Schools.SchoolName, Schools.SchoolId, Schools.SchoolLogo, Schools.IG_Username
-          FROM Posts 
-          INNER JOIN Schools ON Posts.SchoolId = Schools.SchoolId 
-          WHERE Posts.UserId = {1} AND (Posts.DateAdded > (SELECT DateAdded FROM Posts WHERE PostId = {newestViewedPostId}) OR (Posts.DateAdded = (SELECT DateAdded FROM Posts WHERE PostId = {newestViewedPostId}) AND Posts.PostId > {newestViewedPostId}))
-          ORDER BY Posts.DateAdded DESC, Posts.PostId DESC
-          LIMIT 20
-          )
-          UNION ALL
-          (
-          SELECT Posts.*, Schools.SchoolName, Schools.SchoolId, Schools.SchoolLogo, Schools.IG_Username
-          FROM Posts 
-          INNER JOIN Schools ON Posts.SchoolId = Schools.SchoolId 
-          WHERE Posts.UserId = {1} AND (Posts.DateAdded < (SELECT DateAdded FROM Posts WHERE PostId = {oldestViewedPostId}) OR (Posts.DateAdded = (SELECT DateAdded FROM Posts WHERE PostId = {oldestViewedPostId}) AND Posts.PostId < {oldestViewedPostId}))
-          ORDER BY Posts.DateAdded DESC, Posts.PostId DESC
-          LIMIT 20
-          )
-          ORDER BY DateAdded DESC, PostId DESC
-          LIMIT 20
-          '''
-         
-          
-          # Geneare a query statement that selects the posts that the user has not viewed yet #
-          # Get posts and order them by DateAdded descending and postId descending.
-          # remeber that posts maybe have the same DateAdded so we need to order them by postId descending to get the newest and oldest posts
-          # we select the posts that have a date greater than the newest viewed post date or if the date is equal then we select the posts that have a postId greater than the newest viewed post id
-          # and for the older posts we select the posts that have a date less than the oldest viewed post date or if the date is equal then we select the posts that have a postId less than the oldest viewed post id
-          # Then get the 20 posts that are newer than the newestViewedPost and if the posts newer are less than 20 
-          #...then get and add posts that are older than the oldestViewedPost to make the total posts 20
-          # Does my above query statement make logical sense assuming that the selected posts will be the posts that the user has not viewed yet?
 
-     cursor.execute(sql=sqlQuery)
-     posts = cursor.fetchall()
-    
-     if len(posts) == 0:
-          return jsonify([])
-     for post in posts:
-          post['User'] = {}
-          post['Resources'] = json.loads(post['Resources'])
-          post['ResourceTypes'] = json.loads(post['ResourceTypes'])
+          # Get 20 unviewed posts for the User
+          cursor.execute(f"""
+               SELECT * 
+               FROM TempTable 
+               WHERE DateArrangedId > (
+                    SELECT DateArrangedId 
+                    FROM TempTable 
+                    WHERE PostId = {newestViewedPostId}
+               ) 
+               OR DateArrangedId < (
+                    SELECT DateArrangedId 
+                    FROM TempTable 
+                    WHERE PostId = {oldestViewedPostId}
+               ) 
+               ORDER BY DateAdded DESC, PostId DESC 
+               LIMIT 20;
+          """)
+          posts = cursor.fetchall()
 
-          post['Liked'] = getLikedPostStatus(post['PostId'], userId)
-          post['PostStats'] = getPostStats(post['PostId'])
-          
-          # Add short user profile to post 
-          post['User']['UserId'] = post['UserId']
-          post['User']['SchoolId'] = post['SchoolId']
-          post['User']['Username'] = post['IG_Username']
-          post['User']['ProfilePicture'] = post['SchoolLogo']
-          post['User']['SchoolName'] = post['SchoolName']
-          post['User']['VerificationType'] = 'IgSchool'
-
-          post['User']['Verified'] = 1
-          post['User']['ShowPost'] = 0
-          # TODO: Add school post
-          post['User']['SchoolPost'] = ''
-
-          # Convert date to ISO format
-          if 'DateAdded' in post:
-               post['DateAdded'] = post['DateAdded'].isoformat()
+     # Process posts and return
+     posts = processPosts(posts, userId)
+     ## Drop the temporary table
+     cursor.execute("DROP TEMPORARY TABLE IF EXISTS TempTable;") # Since we are not closing the connection, we need to drop the temporary table
+     ## Return the posts
      return posts
+    
+# Format post add username, profile picture, and school name i.e short user profile
+def processPosts(posts, userId):
+    if len(posts) == 0:
+        return []
+
+    for post in posts:
+        post['User'] = {}
+        post['Resources'] = json.loads(post['Resources'])
+        post['ResourceTypes'] = json.loads(post['ResourceTypes'])
+
+        post['Liked'] = getLikedPostStatus(post['PostId'], userId)
+        post['PostStats'] = getPostStats(post['PostId'])
+
+        # Add short user profile to post 
+        post['User']['UserId'] = post['UserId']
+        post['User']['SchoolId'] = post['SchoolId']
+        post['User']['Username'] = post['IG_Username']
+        post['User']['ProfilePicture'] = post['SchoolLogo']
+        post['User']['SchoolName'] = post['SchoolName']
+        post['User']['VerificationType'] = 'IgSchool'
+
+        post['User']['Verified'] = 1
+        post['User']['ShowPost'] = 0
+        post['User']['SchoolPost'] = ''
+
+        # Convert date to ISO format
+        if 'DateAdded' in post:
+            post['DateAdded'] = post['DateAdded'].isoformat()
+
+    return posts
 

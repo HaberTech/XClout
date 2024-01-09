@@ -19,6 +19,7 @@ from modules.main import databaseConnection
 def storePostResources(school_ig_username, resources, resource_types):
     newResources = []
     mainResourceFolder = ''
+    mediaDownloadIndex = 1
 
     for i, resource in enumerate(resources):
         subFolder = 'images' if resource_types[i] == 1 else 'videos'
@@ -34,20 +35,21 @@ def storePostResources(school_ig_username, resources, resource_types):
 
         # Download the file
         try:
-            print(f'Downloading...')
+            print(f'Downloading {subFolder} as resource {mediaDownloadIndex}...')
             response = requests.get(resource, stream=True)
             response.raise_for_status()  # Raise an exception if the GET request was unsuccessful
 
             # Save the file
             with open(filepath, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                # for chunk in response.iter_content(chunk_size=8192):
+                for chunk in response.iter_content(chunk_size=2097152): #2MB
                     f.write(chunk)
-
             newResources.append(filename)
             # print(f'Successfully downloaded {resource}!')
         except Exception as e:
             print(f'Failed to download {resource}!')
             print(e)
+        mediaDownloadIndex+=1
 
     return newResources
 
@@ -78,28 +80,30 @@ def getSchoolMedia(school_ig_username):
     return media
 
 def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List[Media]):
-    print('Storing posts for ' + school_ig_username + ' in database...')
-
     global totalNoOfNewPosts
     global totalNoOfPostsStored
+    postsIndex = 1
     cursor = databaseConnection.cursor()
 
     for post in media:        
-        # get the resource types and use them as resource types
-        resource_types = [resource.media_type for resource in post.resources]
+        # Get to store the resources and resource types
         oldResources = []
+        resource_types = []
 
-        # get the resources urls and use them to download the neccessary files
-        for resource in post.resources:
-            if resource.media_type == 1:
-                # Image
-                oldResources.append(str(resource.thumbnail_url)) 
-            else:
-                # Video...
-                oldResources.append(str(resource.video_url))
+        # If the post is a single post with only one post then the whole post is the resource
+        if(post.media_type != 8):
+            # Convert the whole post to the resource and resource type
+            oldResources.append(str(post.thumbnail_url if post.media_type == 1 else post.video_url))
+            resource_types.append(post.media_type)
+        else:
+            # If it is and album get the resources urls and use them to download the neccessary files
+            for resource in post.resources:
+                oldResources.append(resource.thumbnail_url if resource.media_type == 1 else resource.video_url)
+            resource_types = [resource.media_type for resource in post.resources]
 
         resources = storePostResources(school_ig_username=school_ig_username, resources=oldResources, resource_types=resource_types);
-
+       
+        print(f'Preparing post {postsIndex} for {school_ig_username} to be stored in database...')
         cursor.execute("""
             INSERT INTO Posts (UserId, SchoolId, Caption, Resources, ResourceTypes, SourcePlatform, SourceUsername, MediaPk, DateAdded, NumberOfShares)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -114,6 +118,7 @@ def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List
             DateAdded = VALUES(DateAdded), 
             NumberOfShares = VALUES(NumberOfShares)
         """, ('1', school_id, post.caption_text, json.dumps(resources), json.dumps(resource_types), 'IG', post.user.username, int(post.pk), post.taken_at, post.like_count))
+        postsIndex += 1;
 
         # # Reset AUTO_INCREMENT value
         # cursor.execute("""
@@ -199,29 +204,27 @@ def initialiseIgClient():
     return cl
 
 if __name__ == '__main__':
-    global totalNoOfNewPosts
-    global totalNoOfPostsStored
+    totalNoOfNewPosts:int = 0
+    totalNoOfPostsStored:int = 0
 
-    totalNoOfNewPosts:int = 0;
-    totalNoOfPostsStored:int = 0;
-
-    cl = initialiseIgClient();
+    cl = initialiseIgClient()
     try:
         thisBot = cl.get_timeline_feed()
-        print(f"Logged in as successfully")
-        refreshAllSchoolsPosts();
-    except Exception as e2:
-        print("Login Error. FUCK!!!!!!... Retrying\n")
+        print("Logged in successfully")
+        refreshAllSchoolsPosts()
+    except Exception as e:
+        print("Login Error. Retrying...")
+        print('Error:', e)
         try:
             cl.relogin()
-            print('Success 1')
+            print('Relogin attempt 1 successful')
             refreshAllSchoolsPosts()
         except Exception as e:
-            print('Failed 1', e)
+            print('Relogin attempt 1 failed:', e)
             try:
                 cl.relogin()
-                print('Success 2')
+                print('Relogin attempt 2 successful')
                 refreshAllSchoolsPosts()
             except Exception as e:
-                print('Failed 2', e)
+                print('Relogin attempt 2 failed:', e)
 #  caffeinate -i -s /opt/homebrew/bin/python3 /Users/cedrick/Projects/Python/Xclout-Backend/modules/server/getPosts.py
