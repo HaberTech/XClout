@@ -628,7 +628,10 @@ class _PostVideoPlayerState extends State<PostVideoPlayer>
                 VideoPlayer(_controller),
                 // Play button
                 if (!_controller.value.isPlaying)
-                  Icon(Icons.play_arrow, size: 64.0, color: Colors.grey[700]),
+                  Center(
+                    child: Icon(Icons.play_arrow,
+                        size: 64.0, color: Colors.grey[700]),
+                  ),
                 // Transparent container to capture gestures
                 GestureDetector(
                   onTap: () {
