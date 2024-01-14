@@ -16,8 +16,8 @@ class MainApiCall {
 
   MainApiCall() {
     mainApiHostUrl =
-        // Uri.base.host.isNotEmpty ? Uri.base.host : "192.168.43.66:8000";
-        Uri.base.host.isNotEmpty ? "192.168.43.66:8000" : "192.168.43.66:8000";
+        Uri.base.host.isNotEmpty ? Uri.base.host : "xclout.habertech.info";
+    // Uri.base.host.isNotEmpty ? "192.168.43.66:8000" : "192.168.43.66:8000";
   }
   Future<String> loadCookies() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -34,7 +34,7 @@ class MainApiCall {
     final String finalEndpoint =
         (serverEndpointPrefix + endpoint).replaceAll(RegExp(r'(?<!:)//'), '/');
     // Remove possible occurance of // from the final endpoint;
-    final Uri uri = Uri.http(mainApiHostUrl, finalEndpoint, fields);
+    final Uri uri = Uri.https(mainApiHostUrl, finalEndpoint, fields);
     final http.Response response = await http.get(
       uri,
       headers: {
@@ -57,7 +57,7 @@ class MainApiCall {
     final String finalEndpoint =
         (serverEndpointPrefix + endpoint).replaceAll(RegExp(r'(?<!:)//'), '/');
     // Remove possible occurance of // from the final endpoint
-    final Uri uri = Uri.http(mainApiHostUrl, finalEndpoint);
+    final Uri uri = Uri.https(mainApiHostUrl, finalEndpoint);
 
     final http.Response response = await http.post(
       uri,
@@ -82,7 +82,7 @@ class MainApiCall {
     final String finalEndpoint =
         ("$serverEndpointPrefix/signUp").replaceAll(RegExp(r'(?<!:)//'), '/');
     // Remove possible occurance of // from the final endpoint;
-    var uri = Uri.http(mainApiHostUrl, finalEndpoint);
+    var uri = Uri.https(mainApiHostUrl, finalEndpoint);
     developer.log(uri.toString());
     Map<String, String> response = {};
 
