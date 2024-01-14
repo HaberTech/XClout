@@ -8,9 +8,8 @@ part of 'posts_card.dart';
 
 Post _$PostFromJson(Map<String, dynamic> json) => Post(
       caption: json['Caption'] as String,
-      dateAdded: json['DateAdded'] as String,
+      datePosted: json['DatePosted'] as String,
       likeStatus: json['Liked'] as String,
-      numberOfShares: json['NumberOfShares'] as int,
       postId: json['PostId'] as int,
       postStats: Map<String, int>.from(json['PostStats'] as Map),
       resources:
@@ -25,13 +24,14 @@ Post _$PostFromJson(Map<String, dynamic> json) => Post(
       schoolLogo: json['SchoolLogo'] as String,
       user: json['User'] as Map<String, dynamic>,
       userId: json['UserId'] as int,
+      newestViewedPostId: json['NewestViewedPostId'] as int?,
+      oldestViewedPostId: json['OldestViewedPostId'] as int?,
     );
 
 Map<String, dynamic> _$PostToJson(Post instance) => <String, dynamic>{
       'Caption': instance.caption,
-      'DateAdded': instance.dateAdded,
+      'DatePosted': instance.datePosted,
       'Liked': instance.likeStatus,
-      'NumberOfShares': instance.numberOfShares,
       'PostId': instance.postId,
       'PostStats': instance.postStats,
       'Resources': instance.resources,
@@ -43,4 +43,6 @@ Map<String, dynamic> _$PostToJson(Post instance) => <String, dynamic>{
       'SchoolLogo': instance.schoolLogo,
       'User': instance.user,
       'UserId': instance.userId,
+      'NewestViewedPostId': instance.newestViewedPostId,
+      'OldestViewedPostId': instance.oldestViewedPostId,
     };

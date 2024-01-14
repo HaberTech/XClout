@@ -2,6 +2,8 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:xclout/backend/main_api.dart';
 import 'package:xclout/backend/universal_imports.dart';
 import 'package:xclout/backend/widgets.dart';
+// Globals
+import 'package:xclout/backend/globals.dart' as globals;
 
 class Comment extends StatelessWidget {
   final Map<String, dynamic> comment;
@@ -14,7 +16,8 @@ class Comment extends StatelessWidget {
         leading: SizedBox(
           height: 40,
           width: 40,
-          child: MyCORSImage.network(url: comment['User']!['ProfilePicture']!),
+          child: MyCORSImage.networkOrData(
+              url: comment['User']!['ProfilePicture']!),
         ),
         title: UserNameAndPost(user: comment['User']),
         subtitle: Column(
@@ -153,15 +156,23 @@ class _PostCommentsState extends State<PostComments> {
             ),
             IconButton(
               onPressed: () {
-                _commentOnPost(
-                  postId: widget.postId,
-                  parentCommentId: 0,
-                  comment: comment.text,
-                  context: context,
-                );
-                comment.clear();
-                // Reload Comments
-                setState(() {});
+                 FirebaseAnalytics.instance.logEvent(
+                    name: 'comment_on_post',
+                    parameters: {
+                      'IsUserLoggedIn': globals.isLoggedIn.toString()
+                    },
+                  );
+                continueElseLogin(ifLoggedIn: () {
+                  _commentOnPost(
+                    postId: widget.postId,
+                    parentCommentId: 0,
+                    comment: comment.text,
+                    context: context,
+                  );
+                  comment.clear();
+                  // Reload Comments
+                  setState(() {});
+                });
               },
               icon: const Icon(
                 Icons.send,

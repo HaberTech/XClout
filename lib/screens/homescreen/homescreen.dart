@@ -1,10 +1,12 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
+
+import 'package:xclout/screens/chat/chat.dart';
+import 'package:xclout/screens/homescreen/posts_card.dart';
+
 import 'package:xclout/backend/main_api.dart';
 import 'package:xclout/backend/universal_imports.dart';
 import 'package:xclout/backend/widgets.dart';
-import 'package:xclout/screens/chat/chat.dart';
-
-import 'package:xclout/screens/homescreen/posts_card.dart';
 import 'package:xclout/backend/globals.dart' as globals;
 
 class HomeScreen extends StatelessWidget {
@@ -41,7 +43,7 @@ class HomeScreen extends StatelessWidget {
           return Text('${snapshot.error}');
         } else {
           // While cookies are being fetched
-          return const CircularProgressIndicator();
+          return const Center(child: CircularProgressIndicator());
         }
       },
     );
@@ -64,6 +66,7 @@ class FeedPage extends StatefulWidget {
 
 class _FeedPageState extends State<FeedPage> {
   List<Post> posts = [];
+  late Post lastFirstPost;
   final ScrollController _scrollController = ScrollController();
 
   bool isLoading = false;
@@ -78,7 +81,7 @@ class _FeedPageState extends State<FeedPage> {
         return AlertDialog(
           title: const Text("Notice! Notice! Notice!"),
           content: const Text(
-              "This app is still in development and in a very early alpha stage. Use it and expect issues. \nAlways report and provide feedback icluding issues, what you like and ideas you want implemented to the developer (Cedrick) \nLogin or signup for full access."),
+              "Tap the phone icon in the upper right corner to contact the developers for support! \nThis app is still in development and in a very early alpha stage. Use it and expect issues. \nAlways report and provide feedback icluding issues and ideas you want implemented to the developer \nLogin or signup for full access."),
           actions: [
             ElevatedButton(
               style: myButtonStyle(),
@@ -96,7 +99,7 @@ class _FeedPageState extends State<FeedPage> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'FeedsPage');
+    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'FeedPage');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showUsersNotice(context);
       _loadPosts(); // Call _loadPosts() here
@@ -107,7 +110,23 @@ class _FeedPageState extends State<FeedPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        actions: [
+        actions: <IconButton>[
+          IconButton(
+            onPressed: () async {
+              final Uri whatsappUri =
+                  Uri.parse("https://wa.me/256787483408?text=Hello,%20There!");
+              FirebaseAnalytics.instance.logEvent(
+                name: 'contact_developer',
+                parameters: {'isLoggedIn': globals.isLoggedIn.toString()},
+              );
+              if (await url_launcher.canLaunchUrl(whatsappUri)) {
+                await url_launcher.launchUrl(whatsappUri);
+              } else {
+                print("Please try that again");
+              }
+            },
+            icon: const Icon(Icons.phone_forwarded_rounded),
+          ),
           IconButton(
             onPressed: () {
               FirebaseAnalytics.instance.logEvent(
@@ -149,20 +168,21 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   Future<bool> _loadPosts() async {
+    print('Loading posts...');
     if (!hasMorePosts) return false;
     // If there are no more posts to load, return
     setState(() => isLoading = true);
-   
+
     print('Number of posts: ${posts.length}');
     // If posts are not empty and some have already been loaded, set the last post ids
     if (posts.isNotEmpty) {
       print('Posts are not empty');
       // Assuming that the posts are sorted by newest first
-      LastViewedPost.setLastViewedPostIds(
-          newestViewedPostId: posts.first.postId,
-          oldestViewedPostId: posts.last.postId);
+      await LastViewedPost.setLastViewedPostIds(
+        newestViewedPostId: lastFirstPost.newestViewedPostId ?? 0,
+        oldestViewedPostId: lastFirstPost.oldestViewedPostId ?? 0,
+      );
     }
-
     // Fetch posts here...
     Map<String, int> lastViewedPostIds =
         await LastViewedPost.getLastViewedPostIds();
@@ -186,49 +206,58 @@ class _FeedPageState extends State<FeedPage> {
     hasMorePosts = newPosts.isNotEmpty;
     if (hasMorePosts) {
       posts.addAll(newPosts);
+      // print(newPosts[0].newestViewedPostId);
     }
 
+    // Store the new last first post
+    lastFirstPost = newPosts.first;
+    print(newPosts.first.toJson());
     setState(() => isLoading = false);
     return true;
   }
 
   Widget _buildPosts(BuildContext context) {
     print('Is loading ${isLoading.toString()}');
-    if (posts.isEmpty && isLoading) {
-      // If no posts have been loaded and _loadPosts() is in progress
-      return const CircularProgressIndicator();
-    } else if (posts.isEmpty && !isLoading) {
-      // If no posts have been loaded and _loadPosts() is not in progress
-      return const Text('No posts available');
+
+    if (posts.isEmpty) {
+      // Show a loading indicator if posts are being loaded, otherwise show a text message
+      return isLoading
+          ? const CircularProgressIndicator()
+          : const Text('No posts available');
     } else {
-      // If posts have been loaded
+      // Show the list of posts
       return ListView.builder(
         itemCount: posts.length + (isLoading ? 1 : 0),
-        itemBuilder: (BuildContext context, int index) {
-          Post post = posts[index]; // Get the post to be shown
-          if (index == posts.length) {
-            // If this is the last item // show a loading indicator
-            return const CircularProgressIndicator();
-          } else {
-            if (post.resources == []) {
-              return Container(); // Return an empty container instead of using continue
-            } else {
-              // print(post.user);
-              // SHOW THE POST IN IT'S CARD
-              return PostCard(post: post);
-            }
-          }
-        },
-        controller: _scrollController
-          ..addListener(() {
-            if (!isLoading &&
-                hasMorePosts &&
-                _scrollController.position.extentAfter < 500) {
-              // If the scroll position is less than 500px from the bottom
-              _loadPosts(); // Load more posts
-            }
-          }),
+        itemBuilder: _buildPost,
+        controller: _scrollController..addListener(_scrollListener),
       );
+    }
+  }
+
+  Widget _buildPost(BuildContext context, int index) {
+    if (index == posts.length) {
+      // If this is the last item, show a loading indicator
+      return const CircularProgressIndicator();
+    } else {
+      // Get the post to be shown
+      Post post = posts[index];
+
+      if (post.resources.isEmpty) {
+        // If the post has no resources, return an empty container
+        return Container();
+      } else {
+        // Show the post in its card
+        return PostCard(post: post);
+      }
+    }
+  }
+
+  void _scrollListener() {
+    if (!isLoading &&
+        hasMorePosts &&
+        _scrollController.position.extentAfter < 500) {
+      // If the scroll position is less than 500px from the bottom
+      _loadPosts(); // Load more posts
     }
   }
 }
