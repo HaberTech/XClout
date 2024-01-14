@@ -81,3 +81,62 @@ def getComments(post_id):
         comment['children'] = fetch_comments(comment['CommentId'])
 
     return json.dumps(top_level_comments, cls=DateTimeEncoder)
+
+# def getRealIdsForNotLoggedInUSers(newestViewedPostId_first: int, oldestViewedPostId_first: int, newestViewedPostId_second: int, oldestViewedPostId_second: int): 
+#      # Check if the newId is newer than the newestViewedPostId and if it is, then return the newId
+#      # Also check if the oldId is older than the oldestViewedPostId and if it is, then return the oldId
+#     cursor = databaseConnection.cursor()
+#      # Get the IDs
+#           # Fetch DateArrangedId for the given PostId
+#     cursor.execute("""
+#                SELECT 
+#                     PostId,
+#                     DateArrangedId AS DateArrangedId
+#                FROM DateArrangedPosts
+#                WHERE PostId IN (%s, %s, %s, %s)
+#      """, (newestViewedPostId_first, newestViewedPostId_second, oldestViewedPostId_first, oldestViewedPostId_second))
+     
+#     dateArrangedIds = cursor.fetchall()
+#     dateArrangedId_dict = {result['PostId']: result['DateArrangedId'] for result in dateArrangedIds}
+
+#     newestViewedDateArrangedId_first = dateArrangedId_dict.get(newestViewedPostId_first, 0)
+#     oldestViewedDateArrangedId_first = dateArrangedId_dict.get(oldestViewedPostId_first, 0)
+#     newestViewedDateArrangedId_second = dateArrangedId_dict.get(newestViewedPostId_second, 0)
+#     oldestViewedDateArrangedId_second = dateArrangedId_dict.get(oldestViewedPostId_second, 0)
+     
+#     # Execute the main query
+#         # Execute the main query using PostId
+#     cursor.execute("""
+#             SELECT 
+#                 MAX(CASE WHEN DateArrangedId IN (%s, %s) THEN PostId ELSE NULL END) as NewestViewedPostId,
+#                 MIN(CASE WHEN DateArrangedId IN (%s, %s) THEN PostId ELSE NULL END) as OldestViewedPostId
+#             FROM DateArrangedPosts
+#             WHERE DateArrangedId IN (%s, %s, %s, %s)
+#     """, (newestViewedDateArrangedId_second, newestViewedDateArrangedId_first, oldestViewedDateArrangedId_second, oldestViewedDateArrangedId_first, newestViewedDateArrangedId_second, newestViewedDateArrangedId_first, oldestViewedDateArrangedId_second, oldestViewedDateArrangedId_first))
+    
+#     result = cursor.fetchone()
+#     newestViewedPostId = result['NewestViewedPostId'] if result['NewestViewedPostId'] is not None else 0
+#     oldestViewedPostId = result['OldestViewedPostId'] if result['OldestViewedPostId'] is not None else 0
+#     return newestViewedPostId, oldestViewedPostId
+
+def getRealIdsForNotLoggedInUSers(newestViewedPostId_first: int, oldestViewedPostId_first: int, newestViewedPostId_second: int, oldestViewedPostId_second: int): 
+    print((newestViewedPostId_first, newestViewedPostId_second, oldestViewedPostId_first, oldestViewedPostId_second))
+    cursor = databaseConnection.cursor()
+    cursor.execute("""
+        SELECT
+            (SELECT PostId FROM DateArrangedPosts WHERE DateArrangedId = 
+                (SELECT MIN(DateArrangedId) FROM DateArrangedPosts WHERE PostId IN (%s, %s, %s, %s))) 
+                AS NewestViewedPostId,
+            (SELECT PostId FROM DateArrangedPosts WHERE DateArrangedId = 
+                (SELECT MAX(DateArrangedId) FROM DateArrangedPosts WHERE PostId IN (%s, %s, %s, %s))) 
+                AS OldestViewedPostId
+    """, (newestViewedPostId_first, newestViewedPostId_second, oldestViewedPostId_first, oldestViewedPostId_second, newestViewedPostId_first, newestViewedPostId_second, oldestViewedPostId_first, oldestViewedPostId_second))
+    
+    results = cursor.fetchone()
+    newestViewedPostId = results['NewestViewedPostId'] if results['NewestViewedPostId'] is not None else 0
+    oldestViewedPostId = results['OldestViewedPostId'] if results['OldestViewedPostId'] is not None else 0
+    print(newestViewedPostId, oldestViewedPostId)
+    # newestViewedPostId = next((result['NewestViewedPostId'] for result in results if 'NewestViewedPostId' in result), 0)
+    # oldestViewedPostId = next((result['OldestViewedPostId'] for result in results if 'OldestViewedPostId' in result), 0)
+
+    return newestViewedPostId, oldestViewedPostId

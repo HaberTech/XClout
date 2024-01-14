@@ -93,19 +93,19 @@ def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List
         # If the post is a single post with only one post then the whole post is the resource
         if(post.media_type != 8):
             # Convert the whole post to the resource and resource type
-            oldResources.append(str(post.thumbnail_url if post.media_type == 1 else post.video_url))
+            oldResources.append(str(post.thumbnail_url if post.media_type == 1 else str(post.video_url)))
             resource_types.append(post.media_type)
         else:
             # If it is and album get the resources urls and use them to download the neccessary files
             for resource in post.resources:
-                oldResources.append(resource.thumbnail_url if resource.media_type == 1 else resource.video_url)
+                oldResources.append(str(resource.thumbnail_url) if resource.media_type == 1 else str(resource.video_url))
             resource_types = [resource.media_type for resource in post.resources]
 
         resources = storePostResources(school_ig_username=school_ig_username, resources=oldResources, resource_types=resource_types);
        
         print(f'Preparing post {postsIndex} for {school_ig_username} to be stored in database...')
         cursor.execute("""
-            INSERT INTO Posts (UserId, SchoolId, Caption, Resources, ResourceTypes, SourcePlatform, SourceUsername, MediaPk, DateAdded, NumberOfShares)
+            INSERT INTO Posts (UserId, SchoolId, Caption, Resources, ResourceTypes, SourcePlatform, SourceUsername, MediaPk, DatePosted, NumberOfShares)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             /* Check if the post exists */
             ON DUPLICATE KEY UPDATE
@@ -115,7 +115,7 @@ def storeSchoolMediaInDatabase(school_id:int, school_ig_username:str, media:List
             Resources = VALUES(Resources), 
             ResourceTypes = VALUES(ResourceTypes), 
             SourcePlatform = VALUES(SourcePlatform), 
-            DateAdded = VALUES(DateAdded), 
+            DatePosted = VALUES(DatePosted), 
             NumberOfShares = VALUES(NumberOfShares)
         """, ('1', school_id, post.caption_text, json.dumps(resources), json.dumps(resource_types), 'IG', post.user.username, int(post.pk), post.taken_at, post.like_count))
         postsIndex += 1;

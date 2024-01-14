@@ -1,4 +1,5 @@
 import os
+import time, requests, threading
 from flask import Flask, request, session as Session, send_from_directory
 from flask_cors import CORS
 
@@ -11,8 +12,10 @@ from modules.chat import getChatContacts, getConversation, sendGroupMessage, sen
 app = Flask(__name__)
 app.secret_key = 'TheTempoaryXcloutDebugSecret'
 CORS(app)
+
+appHasRunBefore:bool = False;
 FLUTTER_BASE_DIRECTORY:str = os.environ.get('FLUTTER_BASE_DIRECTORY', '/Users/cedrick/Projects/Flutter/Xclout/build/web')
-print("Cureent Flutter Base Directory => ", FLUTTER_BASE_DIRECTORY)
+print("Current Flutter Base Directory => ", FLUTTER_BASE_DIRECTORY)
 
 # Ping this to check if server is up
 @app.route('/api/ping')
@@ -93,10 +96,36 @@ def send_message():
 def serve_flutter_home():
     return send_from_directory(FLUTTER_BASE_DIRECTORY, 'index.html')
 
+@app.route('/show/uploads/<path:path>')
+def serveUploads(path):
+    return send_from_directory('modules/server/uploads', path)
+
 @app.route('/<path:path>')
 def serve_flutterweb_resource(path):
     print(path)
     return send_from_directory(FLUTTER_BASE_DIRECTORY, path)
+
+# @app.before_request
+# def firstRun():
+#     global appHasRunBefore
+#     if not appHasRunBefore:
+#         # Replace 'your_service_url' with the actual URL of your service
+#         thread = threading.Thread(target=keep_alive, args=())
+#         thread.start()
+#         appHasRunBefore = True
+
+
+def keep_alive():
+    interval:int = 600
+    url:str = os.environ.get('SERVICE_URL', 'https://xclout.habertech.info/api/ping')
+    while True:
+        try:
+            requests.get(url, verify=False)
+            print(f"########### PINGED SELF ##########")
+            time.sleep(interval)
+        except requests.exceptions.RequestException as e:
+            print(f"Error pinging {url}: {str(e)}")
+            time.sleep(60)
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000, host='0.0.0.0')
