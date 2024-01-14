@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'dart:developer' as developer;
 
 import 'package:xclout/backend/main_api.dart';
@@ -612,30 +613,46 @@ class _PostVideoPlayerState extends State<PostVideoPlayer>
   Widget build(BuildContext context) {
     super.build(context); // This is neccesary for AutomaticKeepAliveClientMixin
     return _controller.value.isInitialized
-        ? Stack(
-            children: [
-              // Video player
-              VideoPlayer(_controller),
-              // Transparent container to capture gestures
-              GestureDetector(
-                onTap: () {
-                  // Wrap the play or pause in a call to `setState`.
-                  setState(() {
-                    // If the video is playing, pause it.
-                    _controller.value.isPlaying
-                        ? _controller.pause()
-                        : _controller.play();
-                    // If the video is paused, play it.
-                  });
-                },
-                child: Container(
-                  color: Colors.transparent,
+        ? VisibilityDetector(
+            key: Key(widget.videoUrl.toString()),
+            onVisibilityChanged: (visibilityInfo) {
+              // double visiblePercentage = visibilityInfo.visibleFraction * 100;
+              visibilityInfo.visibleFraction == 0
+                  ? _controller.pause()
+                  : _controller.play();
+            },
+            child: // ... rest of your widget
+                Stack(
+              children: [
+                // Video player
+                VideoPlayer(_controller),
+                // Play button
+                if (!_controller.value.isPlaying)
+                  Icon(Icons.play_arrow, size: 64.0, color: Colors.grey[700]),
+                // Transparent container to capture gestures
+                GestureDetector(
+                  onTap: () {
+                    // Wrap the play or pause in a call to `setState`.
+                    setState(() {
+                      // If the video is playing, pause it.
+                      _controller.value.isPlaying
+                          ? _controller.pause()
+                          : _controller.play();
+                      // If the video is paused, play it.
+                    });
+                  },
+                  child: Container(
+                    color: Colors.transparent,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           )
         : const Center(
-            child: CircularProgressIndicator(),
+            child: ListTile(
+              title: CircularProgressIndicator(),
+              subtitle: Text('Video is loading...'),
+            ),
           );
   }
 }
