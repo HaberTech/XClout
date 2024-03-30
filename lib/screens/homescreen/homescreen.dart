@@ -99,7 +99,7 @@ class _FeedPageState extends State<FeedPage> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'FeedPage');
+    FirebaseAnalytics.instance.logScreenView(screenName: 'FeedPage');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showUsersNotice(context);
       _loadPosts(); // Call _loadPosts() here

@@ -44,7 +44,7 @@ class _PostCommentsState extends State<PostComments> {
   void initState() {
     super.initState();
     // Set current screen for analytics
-    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'comments_screen');
+    FirebaseAnalytics.instance.logScreenView(screenName: 'comments_screen');
   }
 
   @override
@@ -156,12 +156,10 @@ class _PostCommentsState extends State<PostComments> {
             ),
             IconButton(
               onPressed: () {
-                 FirebaseAnalytics.instance.logEvent(
-                    name: 'comment_on_post',
-                    parameters: {
-                      'IsUserLoggedIn': globals.isLoggedIn.toString()
-                    },
-                  );
+                FirebaseAnalytics.instance.logEvent(
+                  name: 'comment_on_post',
+                  parameters: {'IsUserLoggedIn': globals.isLoggedIn.toString()},
+                );
                 continueElseLogin(ifLoggedIn: () {
                   _commentOnPost(
                     postId: widget.postId,

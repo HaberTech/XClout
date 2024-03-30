@@ -47,7 +47,7 @@ class _ChatsListState extends State<ChatsList> {
   void initState() {
     super.initState();
     // Set current screen for analytics
-    FirebaseAnalytics.instance.setCurrentScreen(screenName: 'chats_screen');
+    FirebaseAnalytics.instance.logScreenView(screenName: 'chats_screen');
   }
 
   @override
